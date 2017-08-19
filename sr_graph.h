@@ -40,6 +40,7 @@ namespace sr_graph {
 namespace sr_graph {
 	
 	void _internalSetup();
+	void _internalFree();
 	GLuint _setDataBuffer(const float * data, const unsigned int count);
 	void _getLine(const float p0x, const float p0y, const float p1x, const float p1y, const float w, const float ratio, std::vector<float> & points);
 	
@@ -53,11 +54,6 @@ namespace sr_graph {
 		float b;
 	} Color;
 	
-	typedef struct {
-		Color color;
-		GLuint vid;
-		GLsizei vcount;
-	} Axis;
 	
 	typedef struct {
 		Color color;
@@ -84,6 +80,7 @@ namespace sr_graph {
 		GLuint cid;
 		GLuint rid;
 	} _InternalState ;
+	
 	static _InternalState _state;
 
 	static std::map<unsigned int, Graph> _graphs;
@@ -238,14 +235,26 @@ namespace sr_graph {
 			return;
 		}
 		
+		// Copy OpenGL states.
+		bool depthState = glIsEnabled(GL_DEPTH_TEST) == GL_TRUE;
+		bool cullState = glIsEnabled(GL_CULL_FACE) == GL_TRUE;
+		bool blendState = glIsEnabled(GL_BLEND) == GL_TRUE;
+		GLint faceMode, cullFaceMode, blendSrcMode, blendDstMode;
+		glGetIntegerv(GL_FRONT_FACE, &faceMode);
+		glGetIntegerv(GL_CULL_FACE_MODE, &cullFaceMode);
+		glGetIntegerv(GL_BLEND_SRC, &blendSrcMode);
+		glGetIntegerv(GL_BLEND_DST, &blendDstMode);
+		GLint polygonModes[2];
+		glGetIntegerv(GL_POLYGON_MODE, polygonModes);
+		
+		// Set states.
 		glDisable(GL_DEPTH_TEST);
 		glEnable(GL_CULL_FACE);
 		glFrontFace(GL_CCW);
 		glCullFace(GL_BACK);
-		//glEnable(GL_BLEND);
-		//glBlendFunc(GL_SRC_ALPHA_SATURATE, GL_ONE);
-		//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-		
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glPolygonMode( GL_FRONT_AND_BACK, GL_FILL ) ;
 		const Graph & graph = _graphs[graph_id];
 		glUseProgram(_state.pid);
 		// Draw quad to clear.
@@ -267,10 +276,30 @@ namespace sr_graph {
 		glUniform3f(_state.cid, graph.colorAxes.r, graph.colorAxes.g, graph.colorAxes.b);
 		glBindVertexArray(graph.idAxes);
 		glDrawArrays(GL_TRIANGLES, 0, graph.countAxes);
-		glBindVertexArray(0);
 		
+		// Restore OpenGL state.
+		glBindVertexArray(0);
 		glUseProgram(0);
-		// RESTORE
+		if(blendState){
+			glEnable(GL_BLEND);
+		} else {
+			glDisable(GL_BLEND);
+		}
+		if(cullState){
+			glEnable(GL_CULL_FACE);
+		} else {
+			glDisable(GL_CULL_FACE);
+		}
+		if(depthState){
+			glEnable(GL_DEPTH_TEST);
+		} else {
+			glDisable(GL_DEPTH_TEST);
+		}
+		glFrontFace(faceMode);
+		glCullFace(cullFaceMode);
+		glBlendFunc(blendSrcMode, blendDstMode);
+		glPolygonMode(GL_FRONT, polygonModes[0] );
+		glPolygonMode(GL_BACK,  polygonModes[1] );
 		
 	}
 
@@ -282,8 +311,10 @@ namespace sr_graph {
 		
 		std::cout << "Freeing graph " << graph_id << std::endl;
 		
+		const Graph & graph = _graphs[graph_id];
 		// Free GL ressources;
-		//glDeleteVertexArrays(1, &self.horizontal.linesId)
+		glDeleteVertexArrays(1, &graph.idGrid);
+		glDeleteVertexArrays(1, &graph.idAxes);
 		_graphs.erase(graph_id);
 	}
 	
@@ -341,9 +372,10 @@ namespace sr_graph {
 	static const std::string fstr =
 	std::string("#version 330\n") +
 	"uniform vec3 color;" + "\n" +
-	"out vec3 frag_Color;" + "\n" +
+	"out vec4 frag_Color;" + "\n" +
 	"void main(){" + "\n" +
-	"frag_Color = color;" + "\n" +
+	"frag_Color.rgb = color;" + "\n" +
+	"frag_Color.a = 1.0;" + "\n" +
 	"}" + "\n";
 	
 	static const std::string ffstr = std::string("#version 330\n") +
@@ -449,6 +481,10 @@ namespace sr_graph {
 		const float quadData[12] = { -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f };
 		_state.idQuad = _setDataBuffer(quadData, 6);
 			
+	}
+	void _internalFree(){
+		glDeleteProgram(_state.pid);
+		glDeleteVertexArrays(1, &_state.idQuad);
 	}
 	
 }
