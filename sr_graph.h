@@ -86,7 +86,7 @@ namespace sr_graph {
 	} _InternalState ;
 	static _InternalState _state;
 
-	static std::vector<Graph> _graphs;
+	static std::map<unsigned int, Graph> _graphs;
 	
 	
 	int setup(const float minx, const float maxx, const float miny, const float maxy, const float ratio, const float margins, const float bg_r, const float bg_g, const float bg_b){
@@ -104,9 +104,10 @@ namespace sr_graph {
 		graph.ratio = fabs(ratio);
 		graph.margin = fmin(1.0f, fmax(0.0f, fabs(margins*2.0)));
 		
-		_graphs.push_back(graph);
+		
 		
 		int graphId = _nextGraphId;
+		_graphs[graphId] = graph;
 		++_nextGraphId;
 		return graphId;
 		
@@ -141,9 +142,10 @@ namespace sr_graph {
 		}
 		
 		const float ld = fmin(0.05f, 0.5f*margin);
-		hx0 -= (reverse ? 1.5*ld : 0.0f);
-		hx1 += (reverse ? 0.0f : 1.5*ld);
+		
 		if (orientation == VERTICAL) {
+			hx0 -= (reverse ? 1.5*ld*ratio : 0.0f);
+			hx1 += (reverse ? 0.0f : 1.5*ld*ratio);
 			_getLine(hy, hx0, hy, hx1, width, ratio, axisData);
 			if(reverse){
 				_getLine(hy, hx0, hy+ld, hx0+ld*ratio, width, ratio, axisData);
@@ -153,6 +155,8 @@ namespace sr_graph {
 				_getLine(hy, hx1+width, hy-ld, hx1-ld*ratio, width, ratio, axisData);
 			}
 		} else {
+			hx0 -= (reverse ? 1.5*ld : 0.0f);
+			hx1 += (reverse ? 0.0f : 1.5*ld);
 			_getLine(hx0, hy, hx1, hy, width, ratio, axisData);
 			// Add arrow.
 			if(reverse){
@@ -168,7 +172,7 @@ namespace sr_graph {
 
     void add_axes(const unsigned int graph_id, const float width, const float axis_r, const float axis_g, const float axis_b, const bool axisOnSide){
 		
-		if(graph_id >= _nextGraphId){
+		if(graph_id >= _nextGraphId || _graphs.count(graph_id) == 0){
 			return;
 		}
 		Graph & graph = _graphs[graph_id];
@@ -185,7 +189,7 @@ namespace sr_graph {
 	}
 	
 	void add_grid(const unsigned int graph_id, const float stepx, const float stepy, const float width, const float lines_r, const float lines_g, const float lines_b) {
-		if(graph_id >= _nextGraphId){
+		if(graph_id >= _nextGraphId || _graphs.count(graph_id) == 0){
 			return;
 		}
 		Graph & graph = _graphs[graph_id];
@@ -212,7 +216,7 @@ namespace sr_graph {
 	
 	void add_curve(const unsigned int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float color_r, const float color_g, const float color_b) {
 		
-		if(graph_id >= _nextGraphId){
+		if(graph_id >= _nextGraphId || _graphs.count(graph_id) == 0){
 			return;
 		}
 		
@@ -221,7 +225,7 @@ namespace sr_graph {
 
 	void add_hist(const unsigned int graph_id, const unsigned int bins, const std::vector<float> & ys, const float color_r, const float color_g, const float color_b) {
 		
-		if(graph_id >= _nextGraphId){
+		if(graph_id >= _nextGraphId || _graphs.count(graph_id) == 0){
 			return;
 		}
 		
@@ -230,7 +234,7 @@ namespace sr_graph {
 
 	void draw(const unsigned int graph_id, float ratio) {
 		
-		if(graph_id >= _nextGraphId){
+		if(graph_id >= _nextGraphId || _graphs.count(graph_id) == 0){
 			return;
 		}
 		
@@ -272,7 +276,7 @@ namespace sr_graph {
 
 	void free(const unsigned int graph_id) {
 		
-		if(graph_id >= _nextGraphId){
+		if(graph_id >= _nextGraphId || _graphs.count(graph_id) == 0){
 			return;
 		}
 		
@@ -280,8 +284,7 @@ namespace sr_graph {
 		
 		// Free GL ressources;
 		//glDeleteVertexArrays(1, &self.horizontal.linesId)
-		Graph emptyGraph;
-		_graphs[graph_id] = emptyGraph;
+		_graphs.erase(graph_id);
 	}
 	
 		 // RATIO at runtime
