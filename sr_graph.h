@@ -14,7 +14,7 @@ namespace sr_graph {
 	
 	extern void  add_grid(const unsigned int graph_id, const float stepx, const float stepy, const float width, const float lines_r, const float lines_g, const float lines_b);
 	
-	extern void add_curve(const unsigned int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float color_r, const float color_g, const float color_b);
+	extern void add_curve(const unsigned int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float width, const float color_r, const float color_g, const float color_b);
 	
 
 	extern void add_hist(const unsigned int graph_id, const unsigned int bins, const std::vector<float> & ys, const float color_r, const float color_g, const float color_b);
@@ -56,6 +56,12 @@ namespace sr_graph {
 	
 	
 	typedef struct {
+		GLuint id;
+		GLsizei count;
+		Color color;
+	} Curve;
+	
+	typedef struct {
 		Color color;
 		float minx;
 		float maxx;
@@ -71,6 +77,8 @@ namespace sr_graph {
 		GLuint idGrid;
 		GLuint countGrid;
 		Color colorGrid;
+		
+		std::vector<Curve> curves;
 		
 	} Graph;
 
@@ -100,7 +108,6 @@ namespace sr_graph {
 		graph.maxy = maxy;
 		graph.ratio = fabs(ratio);
 		graph.margin = fmin(1.0f, fmax(0.0f, fabs(margins*2.0)));
-		
 		
 		
 		int graphId = _nextGraphId;
@@ -211,13 +218,38 @@ namespace sr_graph {
 		graph.idGrid = _setDataBuffer(&gridData[0], graph.countGrid);
 	}
 	
-	void add_curve(const unsigned int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float color_r, const float color_g, const float color_b) {
+	void add_curve(const unsigned int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float width, const float color_r, const float color_g, const float color_b) {
 		
 		if(graph_id >= _nextGraphId || _graphs.count(graph_id) == 0){
 			return;
 		}
 		
-		std::cout << "Curving graph " << graph_id << std::endl;
+		Graph & graph = _graphs[graph_id];
+		if(xs.size() != ys.size() || xs.size() == 0){
+			return;
+		}
+		
+		
+		const float ax = (2.0f*(1.0f-graph.margin))/(graph.maxx - graph.minx);
+		const float bx = -1.0f + graph.margin - ax * graph.minx;
+		const float ay = (2.0f*(1.0f-graph.margin))/(graph.maxy - graph.miny);
+		const float by = -1.0f + graph.margin - ay * graph.miny;
+		std::vector<float> curveData;
+		float x0 = ax*xs[0]+bx;
+		float y0 = ay*ys[0]+by;
+		for(unsigned int i = 1; i < xs.size(); ++i){
+			const float x1 = ax*xs[i]+bx;
+			const float y1 = ay*ys[i]+by;
+			_getLine(x0, y0, x1, y1, width, graph.ratio, curveData);
+			x0 = x1;
+			y0 = y1;
+		}
+		Curve curve;
+		curve.color = {color_r, color_g, color_b};
+		curve.count = (GLsizei)(curveData.size()/2);
+		curve.id = _setDataBuffer(&curveData[0], curve.count);
+		graph.curves.push_back(curve);
+		
 	}
 
 	void add_hist(const unsigned int graph_id, const unsigned int bins, const std::vector<float> & ys, const float color_r, const float color_g, const float color_b) {
@@ -254,7 +286,8 @@ namespace sr_graph {
 		glCullFace(GL_BACK);
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glPolygonMode( GL_FRONT_AND_BACK, GL_FILL ) ;
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL) ;
+		
 		const Graph & graph = _graphs[graph_id];
 		glUseProgram(_state.pid);
 		// Draw quad to clear.
@@ -277,9 +310,16 @@ namespace sr_graph {
 		glBindVertexArray(graph.idAxes);
 		glDrawArrays(GL_TRIANGLES, 0, graph.countAxes);
 		
-		// Restore OpenGL state.
+		
+		for(unsigned int i = 0; i < graph.curves.size(); ++i){
+			glUniform3f(_state.cid, graph.curves[i].color.r, graph.curves[i].color.g, graph.curves[i].color.b);
+			glBindVertexArray(graph.curves[i].id);
+			glDrawArrays(GL_TRIANGLES, 0, graph.curves[i].count);
+		}
+		
 		glBindVertexArray(0);
 		glUseProgram(0);
+		// Restore OpenGL state.
 		if(blendState){
 			glEnable(GL_BLEND);
 		} else {
@@ -318,8 +358,9 @@ namespace sr_graph {
 		_graphs.erase(graph_id);
 	}
 	
-		 // RATIO at runtime
-    // private tuils
+	
+    // Private utils
+	
 	 void _getLine(const float p0x, const float p0y, const float p1x, const float p1y, const float w, const float ratio, std::vector<float> & points) {
 		 // Compute normal vector.
 		 float dirx = p1x - p0x;
