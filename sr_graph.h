@@ -79,6 +79,7 @@ namespace sr_graph {
 	} Graph;
 
 	typedef struct {
+		GLuint idQuad;
 		GLuint pid;
 		GLuint cid;
 		GLuint rid;
@@ -177,35 +178,35 @@ namespace sr_graph {
 		_generateAxis(HORIZONTAL, graph.margin, graph.ratio, width, graph.miny, graph.maxy, axisOnSide, axisData);
 		_generateAxis(VERTICAL, graph.margin, graph.ratio, width, graph.minx, graph.maxx, axisOnSide, axisData);
 
-		
-		
-		
 		graph.colorAxes = { axis_r, axis_g, axis_b };
 		graph.countAxes = (GLsizei)(axisData.size()/2);
 		graph.idAxes = _setDataBuffer(&axisData[0], graph.countAxes);
-		
-		
-		/*
-		
-		
-		float vx0 = -1.0f+graph.margin;
-		float vy0 = -1.0f+graph.margin;
-		float vx1 = -1.0f+graph.margin;
-		float vy1 = 1.0f-graph.margin;
-		std::vector<float> vAxisData;
-		_getLine(vx0, vy0, vx1, vy1, width, graph.ratio, vAxisData);
-		
-		Axis vAxis;
-		vAxis.color = { axis_r, axis_g, axis_b };
-		vAxis.vcount = 6;
-		vAxis.vid = _setDataBuffer(&vAxisData[0], vAxis.vcount);
-		
-		graph.vAxis = vAxis;*/
-		
+	
 	}
 	
-	void add_grid(const unsigned int graph_id, const float minx, const float maxx, const float miny, const float maxy, const float stepx, const float stepy, const float width, const float lines_r, const float lines_g, const float lines_b) {
+	void add_grid(const unsigned int graph_id, const float stepx, const float stepy, const float width, const float lines_r, const float lines_g, const float lines_b) {
+		if(graph_id >= _nextGraphId){
+			return;
+		}
+		Graph & graph = _graphs[graph_id];
+		std::vector<float> gridData;
 		
+		float shiftH = (graph.maxx == graph.minx) ? 0.0f : fabs(stepx)/fabs(graph.maxx - graph.minx);
+		for(float x = -1.0f+graph.margin; x < 1.0f-graph.margin; x += shiftH){
+			_getLine(x, -1.0f+graph.margin, x, 1.0f-graph.margin, width, graph.ratio, gridData);
+		}
+		_getLine(1.0f - graph.margin, -1.0f+graph.margin, 1.0f - graph.margin, 1.0f-graph.margin, width, graph.ratio, gridData);
+		
+		float shiftV = (graph.maxy == graph.miny) ? 0.0f : fabs(stepy)/fabs(graph.maxy - graph.miny);
+		for(float y = -1.0f+graph.margin; y < 1.0f-graph.margin; y += shiftV){
+			_getLine(-1.0f+graph.margin, y, 1.0f-graph.margin, y, width, graph.ratio, gridData);
+		}
+		_getLine(-1.0f+graph.margin, 1.0f - graph.margin, 1.0f-graph.margin, 1.0f - graph.margin, width, graph.ratio, gridData);
+		
+		
+		graph.colorGrid = { lines_r, lines_g, lines_b };
+		graph.countGrid = (GLsizei)(gridData.size()/2);
+		graph.idGrid = _setDataBuffer(&gridData[0], graph.countGrid);
 	}
 	
 	void add_curve(const unsigned int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float color_r, const float color_g, const float color_b) {
@@ -241,17 +242,31 @@ namespace sr_graph {
 		//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		
 		const Graph & graph = _graphs[graph_id];
-		// MIGHT NEED A FULL QUAD INSTEAD OF CLEARING? BC IT DOESN'T TAKE VIEWPORT INTO ACCOUNT
-		glClearColor(graph.color.r, graph.color.g, graph.color.b, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glUseProgram(_state.pid);
+		// Draw quad to clear.
+		glUniform1f(_state.rid, ratio/graph.ratio);
+		glUniform3f(_state.cid, graph.color.r, graph.color.g, graph.color.b);
+		glBindVertexArray(_state.idQuad);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		glBindVertexArray(0);
 		
+		// Draw axes.
 		glUseProgram(_state.pid);
 		glUniform1f(_state.rid, ratio/graph.ratio);
+		
+		glUniform3f(_state.cid, graph.colorGrid.r, graph.colorGrid.g, graph.colorGrid.b);
+		glBindVertexArray(graph.idGrid);
+		glDrawArrays(GL_TRIANGLES, 0, graph.countGrid);
+		glBindVertexArray(0);
 		
 		glUniform3f(_state.cid, graph.colorAxes.r, graph.colorAxes.g, graph.colorAxes.b);
 		glBindVertexArray(graph.idAxes);
 		glDrawArrays(GL_TRIANGLES, 0, graph.countAxes);
 		glBindVertexArray(0);
+		
+		
+		
+		
 		glUseProgram(0);
 		// RESTORE
 		
@@ -430,6 +445,9 @@ namespace sr_graph {
 		_state.cid = glGetUniformLocation(_state.pid, "color");
 		_state.rid = glGetUniformLocation(_state.pid, "ratio");
 		glUseProgram(0);
+		const float quadData[12] = { -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f };
+		_state.idQuad = _setDataBuffer(quadData, 6);
+			
 	}
 	
 }
