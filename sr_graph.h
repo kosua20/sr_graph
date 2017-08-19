@@ -8,12 +8,15 @@
 
 namespace sr_graph {
 	
-	extern int setup(const float ratio, const float margins, const float bg_r, const float bg_g, const float bg_b);
+	extern int setup(const float minx, const float maxx, const float miny, const float maxy, const float ratio, const float margins, const float bg_r, const float bg_g, const float bg_b);
 	
-	extern void add_axes(const unsigned int graph_id, const float minx, const float maxx, const float miny, const float maxy, const float stepx, const float stepy, const float width, const float axis_r, const float axis_g, const float axis_b, const float lines_r, const float lines_g, const float lines_b, const bool axisOnSide);
+	extern void add_axes(const unsigned int graph_id, const float width, const float axis_r, const float axis_g, const float axis_b, const bool axisOnSide);
+	
+	extern void  add_grid(const unsigned int graph_id, const float stepx, const float stepy, const float width, const float lines_r, const float lines_g, const float lines_b);
 	
 	extern void add_curve(const unsigned int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float color_r, const float color_g, const float color_b);
 	
+
 	extern void add_hist(const unsigned int graph_id, const unsigned int bins, const std::vector<float> & ys, const float color_r, const float color_g, const float color_b);
 	
 	extern void draw(const unsigned int graph_id, const float ratio);
@@ -58,10 +61,21 @@ namespace sr_graph {
 	
 	typedef struct {
 		Color color;
+		float minx;
+		float maxx;
+		float miny;
+		float maxy;
 		float ratio;
 		float margin;
-		Axis hAxis;
-		Axis vAxis;
+		
+		GLuint idAxes;
+		GLuint countAxes;
+		Color colorAxes;
+		
+		GLuint idGrid;
+		GLuint countGrid;
+		Color colorGrid;
+		
 	} Graph;
 
 	typedef struct {
@@ -74,7 +88,7 @@ namespace sr_graph {
 	static std::vector<Graph> _graphs;
 	
 	
-	int setup(const float ratio, const float margins, const float bg_r, const float bg_g, const float bg_b){
+	int setup(const float minx, const float maxx, const float miny, const float maxy, const float ratio, const float margins, const float bg_r, const float bg_g, const float bg_b){
 		// If we haven't initialized our GL programs, do it.
 		if (!_isInit) {
 			_internalSetup();
@@ -82,6 +96,10 @@ namespace sr_graph {
 		
 		Graph graph;
 		graph.color = {bg_r, bg_g, bg_b };
+		graph.minx = minx;
+		graph.maxx = maxx;
+		graph.miny = miny;
+		graph.maxy = maxy;
 		graph.ratio = fabs(ratio);
 		graph.margin = fmin(1.0f, fmax(0.0f, fabs(margins*2.0)));
 		
@@ -93,19 +111,24 @@ namespace sr_graph {
 		
 	}
 	
-	void _generateAxis(const float margin, const float ratio, const float width, const float miny, const float maxy, const bool axisOnSide, std::vector<float> & axisData){
+	
+	enum Orientation {
+		VERTICAL, HORIZONTAL
+	};
+	
+	void _generateAxis(const Orientation orientation, const float margin, const float ratio, const float width, const float mini, const float maxi, const bool axisOnSide, std::vector<float> & axisData){
 		float hx0 = -1.0f+margin;
 		float hx1 = 1.0f-margin;
 		float hy;
-		bool reverse = maxy < miny;
+		bool reverse = maxi < mini;
 		// Three positions.
-		if(axisOnSide || 0.0 <= fmin(miny, maxy)){
+		if(axisOnSide || 0.0 <= fmin(mini, maxi)){
 			// Axis on the bottom
 			hy = -1.0f+margin;
 			if(!axisOnSide && reverse){
 				hy *= -1.0f;
 			}
-		} else if (0 >= fmax(maxy, miny)){
+		} else if (0 >= fmax(maxi, mini)){
 			// Axis on the top
 			hy = 1.0f-margin;
 			if(reverse){
@@ -113,24 +136,36 @@ namespace sr_graph {
 			}
 		} else {
 			// Need to find 0 y coord.
-			hy = -2.0f*(1.0f - margin)*(miny/(maxy-miny))+margin-1.0f;
+			hy = -2.0f*(1.0f - margin)*(mini/(maxi-mini))+margin-1.0f;
 		}
 		
 		const float ld = fmin(0.05f, 0.5f*margin);
 		hx0 -= (reverse ? 1.5*ld : 0.0f);
 		hx1 += (reverse ? 0.0f : 1.5*ld);
-		_getLine(hx0, hy, hx1, hy, width, ratio, axisData);
-		// Add arrow.
-		if(reverse){
-			_getLine(hx0, hy, hx0+ld, hy+ld*ratio, width, ratio, axisData);
-			_getLine(hx0, hy, hx0+ld, hy-ld*ratio, width, ratio, axisData);
+		if (orientation == VERTICAL) {
+			_getLine(hy, hx0, hy, hx1, width, ratio, axisData);
+			if(reverse){
+				_getLine(hy, hx0, hy+ld, hx0+ld*ratio, width, ratio, axisData);
+				_getLine(hy, hx0, hy-ld, hx0+ld*ratio, width, ratio, axisData);
+			} else {
+				_getLine(hy, hx1+width, hy+ld, hx1-ld*ratio, width, ratio, axisData);
+				_getLine(hy, hx1+width, hy-ld, hx1-ld*ratio, width, ratio, axisData);
+			}
 		} else {
-			_getLine(hx1+width, hy, hx1-ld, hy+ld*ratio, width, ratio, axisData);
-			_getLine(hx1+width, hy, hx1-ld, hy-ld*ratio, width, ratio, axisData);
+			_getLine(hx0, hy, hx1, hy, width, ratio, axisData);
+			// Add arrow.
+			if(reverse){
+				_getLine(hx0, hy, hx0+ld, hy+ld*ratio, width, ratio, axisData);
+				_getLine(hx0, hy, hx0+ld, hy-ld*ratio, width, ratio, axisData);
+			} else {
+				_getLine(hx1+width, hy, hx1-ld, hy+ld*ratio, width, ratio, axisData);
+				_getLine(hx1+width, hy, hx1-ld, hy-ld*ratio, width, ratio, axisData);
+			}
 		}
+		
 	}
 
-    void add_axes(const unsigned int graph_id, const float minx, const float maxx, const float miny, const float maxy, const float stepx, const float stepy, const float width, const float axis_r, const float axis_g, const float axis_b, const float lines_r, const float lines_g, const float lines_b, const bool axisOnSide){
+    void add_axes(const unsigned int graph_id, const float width, const float axis_r, const float axis_g, const float axis_b, const bool axisOnSide){
 		
 		if(graph_id >= _nextGraphId){
 			return;
@@ -138,17 +173,19 @@ namespace sr_graph {
 		Graph & graph = _graphs[graph_id];
 		/// Generate data for axis.
 		// Horizontal axis: from (-margin, -margin) to (margin, -margin)
-		std::vector<float> hAxisData;
-		_generateAxis(graph.margin, graph.ratio, width, miny, maxy, axisOnSide, hAxisData);
+		std::vector<float> axisData;
+		_generateAxis(HORIZONTAL, graph.margin, graph.ratio, width, graph.miny, graph.maxy, axisOnSide, axisData);
+		_generateAxis(VERTICAL, graph.margin, graph.ratio, width, graph.minx, graph.maxx, axisOnSide, axisData);
 
-		Axis hAxis;
-		hAxis.color = { axis_r, axis_g, axis_b };
-		hAxis.vcount = (GLsizei)(hAxisData.size()/2);
-		hAxis.vid = _setDataBuffer(&hAxisData[0], hAxis.vcount);
-		
-		graph.hAxis = hAxis;
 		
 		
+		
+		graph.colorAxes = { axis_r, axis_g, axis_b };
+		graph.countAxes = (GLsizei)(axisData.size()/2);
+		graph.idAxes = _setDataBuffer(&axisData[0], graph.countAxes);
+		
+		
+		/*
 		
 		
 		float vx0 = -1.0f+graph.margin;
@@ -163,11 +200,13 @@ namespace sr_graph {
 		vAxis.vcount = 6;
 		vAxis.vid = _setDataBuffer(&vAxisData[0], vAxis.vcount);
 		
-		graph.vAxis = vAxis;
+		graph.vAxis = vAxis;*/
 		
 	}
 	
-
+	void add_grid(const unsigned int graph_id, const float minx, const float maxx, const float miny, const float maxy, const float stepx, const float stepy, const float width, const float lines_r, const float lines_g, const float lines_b) {
+		
+	}
 	
 	void add_curve(const unsigned int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float color_r, const float color_g, const float color_b) {
 		
@@ -207,12 +246,11 @@ namespace sr_graph {
 		glClear(GL_COLOR_BUFFER_BIT);
 		
 		glUseProgram(_state.pid);
-		glUniform3f(_state.cid, graph.hAxis.color.r, graph.hAxis.color.g, graph.hAxis.color.b);
 		glUniform1f(_state.rid, ratio/graph.ratio);
-		glBindVertexArray(graph.hAxis.vid);
-		glDrawArrays(GL_TRIANGLES, 0, graph.hAxis.vcount);
-		glBindVertexArray(graph.vAxis.vid);
-		glDrawArrays(GL_TRIANGLES, 0, graph.vAxis.vcount);
+		
+		glUniform3f(_state.cid, graph.colorAxes.r, graph.colorAxes.g, graph.colorAxes.b);
+		glBindVertexArray(graph.idAxes);
+		glDrawArrays(GL_TRIANGLES, 0, graph.countAxes);
 		glBindVertexArray(0);
 		glUseProgram(0);
 		// RESTORE
