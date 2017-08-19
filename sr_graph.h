@@ -195,14 +195,14 @@ namespace sr_graph {
 		Graph & graph = _graphs[graph_id];
 		std::vector<float> gridData;
 		
-		if(graph.maxx != graph.minx){
+		if(stepx != 0.0f && graph.maxx != graph.minx){
 			float shiftH =  2.0f*(1.0f-graph.margin)*fabs(stepx)/fabs(graph.maxx - graph.minx);
 			for(float x = -1.0f+graph.margin; x < 1.0f-graph.margin; x += shiftH){
 				_getLine(x, -1.0f+graph.margin, x, 1.0f-graph.margin, width, graph.ratio, gridData);
 			}
 			_getLine(1.0f - graph.margin, -1.0f+graph.margin, 1.0f - graph.margin, 1.0f-graph.margin, width, graph.ratio, gridData);
 		}
-		if(graph.maxy != graph.miny){
+		if(stepy != 0.0f && graph.maxy != graph.miny){
 			float shiftV = 2.0f*(1.0f-graph.margin)*fabs(stepy)/fabs(graph.maxy - graph.miny);
 			for(float y = -1.0f+graph.margin; y < 1.0f-graph.margin; y += shiftV){
 				_getLine(-1.0f+graph.margin, y, 1.0f-graph.margin, y, width, graph.ratio, gridData);
@@ -326,7 +326,7 @@ namespace sr_graph {
 		 
 	 }
 	
-	// Sahders strings
+	// Shaders strings
 	
 	static const std::string vstr =
 	std::string("#version 330\n") +
