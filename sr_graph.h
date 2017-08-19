@@ -20,7 +20,7 @@ namespace sr_graph {
 	
 	extern void add_points(const unsigned int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float size, const float color_r, const float color_g, const float color_b);
 	
-	extern void draw(const unsigned int graph_id, const float ratio);
+	extern void draw(const unsigned int graph_id, const float ratio = 0.0f);
 	
 	extern void free(const unsigned int graph_id);
 	/*
@@ -331,7 +331,8 @@ namespace sr_graph {
 		if(graph_id >= _nextGraphId || _graphs.count(graph_id) == 0){
 			return;
 		}
-		
+		const Graph & graph = _graphs[graph_id];
+		const float finalRatio = (ratio == 0.0) ? 1.0f : ratio/graph.ratio;
 		// Copy OpenGL states.
 		bool depthState = glIsEnabled(GL_DEPTH_TEST) == GL_TRUE;
 		bool cullState = glIsEnabled(GL_CULL_FACE) == GL_TRUE;
@@ -346,17 +347,17 @@ namespace sr_graph {
 		
 		// Set states.
 		glDisable(GL_DEPTH_TEST);
-		glDisable(GL_CULL_FACE);
+		glEnable(GL_CULL_FACE);
 		glFrontFace(GL_CCW);
 		glCullFace(GL_BACK);
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL) ;
 		
-		const Graph & graph = _graphs[graph_id];
+		
 		glUseProgram(_state.pid);
 		// Draw quad to clear.
-		glUniform1f(_state.rid, ratio/graph.ratio);
+		glUniform1f(_state.rid, finalRatio);
 		glUniform3f(_state.cid, graph.color.r, graph.color.g, graph.color.b);
 		glBindVertexArray(_state.idQuad);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -364,7 +365,7 @@ namespace sr_graph {
 		
 		// Draw axes.
 		glUseProgram(_state.pid);
-		glUniform1f(_state.rid, ratio/graph.ratio);
+		glUniform1f(_state.rid, finalRatio);
 		
 		glUniform3f(_state.cid, graph.colorGrid.r, graph.colorGrid.g, graph.colorGrid.b);
 		glBindVertexArray(graph.idGrid);
@@ -471,14 +472,14 @@ namespace sr_graph {
 		
 		const float wx = w * 0.5;
 		const float ax = p0x - wx;
-		const float bx = p1x - wx;
+		const float bx = p0x + wx;
 		const float cx = p1x + wx;
-		const float dx = p0x + wx;
+		const float dx = p1x - wx;
 
 		const float ay = p0y;
-		const float by = p1y;
+		const float by = p0y;
 		const float cy = p1y;
-		const float dy = p0y;
+		const float dy = p1y;
 		points.push_back(ax); points.push_back(ay);
 		points.push_back(bx); points.push_back(by);
 		points.push_back(cx); points.push_back(cy);
