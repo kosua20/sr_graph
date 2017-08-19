@@ -10,7 +10,7 @@ namespace sr_graph {
 	
 	extern int setup(const float ratio, const float margins, const float bg_r, const float bg_g, const float bg_b);
 	
-	extern void add_axes(const unsigned int graph_id, const float minx, const float maxx, const float miny, const float maxy, const float stepx, const float stepy, const float axis_r, const float axis_g, const float axis_b, const float lines_r, const float lines_g, const float lines_b, const bool axisOnSide);
+	extern void add_axes(const unsigned int graph_id, const float minx, const float maxx, const float miny, const float maxy, const float stepx, const float stepy, const float width, const float axis_r, const float axis_g, const float axis_b, const float lines_r, const float lines_g, const float lines_b, const bool axisOnSide);
 	
 	extern void add_curve(const unsigned int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float color_r, const float color_g, const float color_b);
 	
@@ -92,8 +92,45 @@ namespace sr_graph {
 		return graphId;
 		
 	}
+	
+	void _generateAxis(const float margin, const float ratio, const float width, const float miny, const float maxy, const bool axisOnSide, std::vector<float> & axisData){
+		float hx0 = -1.0f+margin;
+		float hx1 = 1.0f-margin;
+		float hy;
+		bool reverse = maxy < miny;
+		// Three positions.
+		if(axisOnSide || 0.0 <= fmin(miny, maxy)){
+			// Axis on the bottom
+			hy = -1.0f+margin;
+			if(!axisOnSide && reverse){
+				hy *= -1.0f;
+			}
+		} else if (0 >= fmax(maxy, miny)){
+			// Axis on the top
+			hy = 1.0f-margin;
+			if(reverse){
+				hy *= -1.0f;
+			}
+		} else {
+			// Need to find 0 y coord.
+			hy = -2.0f*(1.0f - margin)*(miny/(maxy-miny))+margin-1.0f;
+		}
+		
+		const float ld = fmin(0.05f, 0.5f*margin);
+		hx0 -= (reverse ? 1.5*ld : 0.0f);
+		hx1 += (reverse ? 0.0f : 1.5*ld);
+		_getLine(hx0, hy, hx1, hy, width, ratio, axisData);
+		// Add arrow.
+		if(reverse){
+			_getLine(hx0, hy, hx0+ld, hy+ld*ratio, width, ratio, axisData);
+			_getLine(hx0, hy, hx0+ld, hy-ld*ratio, width, ratio, axisData);
+		} else {
+			_getLine(hx1+width, hy, hx1-ld, hy+ld*ratio, width, ratio, axisData);
+			_getLine(hx1+width, hy, hx1-ld, hy-ld*ratio, width, ratio, axisData);
+		}
+	}
 
-    void add_axes(const unsigned int graph_id, const float minx, const float maxx, const float miny, const float maxy, const float stepx, const float stepy, const float axis_r, const float axis_g, const float axis_b, const float lines_r, const float lines_g, const float lines_b, const bool axisOnSide){
+    void add_axes(const unsigned int graph_id, const float minx, const float maxx, const float miny, const float maxy, const float stepx, const float stepy, const float width, const float axis_r, const float axis_g, const float axis_b, const float lines_r, const float lines_g, const float lines_b, const bool axisOnSide){
 		
 		if(graph_id >= _nextGraphId){
 			return;
@@ -101,62 +138,36 @@ namespace sr_graph {
 		Graph & graph = _graphs[graph_id];
 		/// Generate data for axis.
 		// Horizontal axis: from (-margin, -margin) to (margin, -margin)
-		float hx0 = -1.0f+graph.margin;
-		float hx1 = 1.0f-graph.margin;
-		
-		float hy0 = -1.0f+graph.margin;
-		float hy1 = -1.0f+graph.margin;
-		
-		
 		std::vector<float> hAxisData;
-		_getLine(hx0, hy0, hx1, hy1, 0.025f, graph.ratio, hAxisData);
-		
+		_generateAxis(graph.margin, graph.ratio, width, miny, maxy, axisOnSide, hAxisData);
+
 		Axis hAxis;
 		hAxis.color = { axis_r, axis_g, axis_b };
-		hAxis.vid = _setDataBuffer(&hAxisData[0], 6);
-		hAxis.vcount = 6;
+		hAxis.vcount = (GLsizei)(hAxisData.size()/2);
+		hAxis.vid = _setDataBuffer(&hAxisData[0], hAxis.vcount);
+		
 		graph.hAxis = hAxis;
+		
+		
+		
 		
 		float vx0 = -1.0f+graph.margin;
 		float vy0 = -1.0f+graph.margin;
 		float vx1 = -1.0f+graph.margin;
 		float vy1 = 1.0f-graph.margin;
 		std::vector<float> vAxisData;
-		_getLine(vx0, vy0, vx1, vy1, 0.025f, graph.ratio, vAxisData);
-		_getLine(vx0, vy0, -vx1, vy1, 0.025f, graph.ratio, vAxisData);
+		_getLine(vx0, vy0, vx1, vy1, width, graph.ratio, vAxisData);
 		
 		Axis vAxis;
 		vAxis.color = { axis_r, axis_g, axis_b };
-		vAxis.vid = _setDataBuffer(&vAxisData[0], 12);
-		vAxis.vcount = 12;
+		vAxis.vcount = 6;
+		vAxis.vid = _setDataBuffer(&vAxisData[0], vAxis.vcount);
+		
 		graph.vAxis = vAxis;
 		
 	}
 	
-	/*
-	 
-	 
-	 private func setupAxis(range: Float, mini: Float, steps: [(Float, Int)], shift: float2, vertical: Bool ) -> Axis {
-	 
-	 var stepsScaled = steps.map({ ($0.0-mini) / range })
-	 for i in 0..<stepsScaled.count {
-	 if vertical {
-	 stepsScaled[i] =  2.0 * shift.y * stepsScaled[i] - shift.y
-	 } else {
-	 stepsScaled[i] =  2.0 * shift.x * stepsScaled[i] - shift.x
-	 }
-	 }
-	 // Main axis and arrow.
-	 let x0 = -shift.x-kMargin*0.5/self.infos.ratio
-	 let y0 = -shift.y-kMargin*0.5
-	 let dx0 = kArrowSize
-	 let dy0 = self.infos.ratio * kArrowSize
-	 let axis : [float2]
-	 if vertical {
-	 axis = getLine(p0: float2(x0, y0), p1: float2(x0, -y0+dy0)) + getLine(p0: float2(x0, -y0+dy0), p1: float2(x0-dx0, -y0)) + getLine(p0: float2(x0, -y0+dy0), p1: float2(x0+dx0, -y0))
-	 } else {
-	 axis = getLine(p0: float2(x0, y0), p1: float2(-x0+dx0, y0)) + getLine(p0: float2(-x0+dx0, y0), p1: float2(-x0, y0-dy0)) + getLine(p0: float2(-x0+dx0, y0), p1: float2(-x0, y0+dy0))
-	 }*/
+
 	
 	void add_curve(const unsigned int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float color_r, const float color_g, const float color_b) {
 		
@@ -182,14 +193,16 @@ namespace sr_graph {
 			return;
 		}
 		
-		glDisable(GLenum(GL_DEPTH_TEST));
-		glEnable(GLenum(GL_CULL_FACE));
-		glFrontFace(GLenum(GL_CCW));
-		glCullFace(GLenum(GL_BACK));
-		//glBlendFunc(GLenum(GL_SRC_ALPHA), GLenum(GL_ONE_MINUS_SRC_ALPHA))
-		//glEnable(GLenum(GL_BLEND))
-		const Graph & graph = _graphs[graph_id];
+		glDisable(GL_DEPTH_TEST);
+		glEnable(GL_CULL_FACE);
+		glFrontFace(GL_CCW);
+		glCullFace(GL_BACK);
+		//glEnable(GL_BLEND);
+		//glBlendFunc(GL_SRC_ALPHA_SATURATE, GL_ONE);
+		//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		
+		const Graph & graph = _graphs[graph_id];
+		// MIGHT NEED A FULL QUAD INSTEAD OF CLEARING? BC IT DOESN'T TAKE VIEWPORT INTO ACCOUNT
 		glClearColor(graph.color.r, graph.color.g, graph.color.b, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		
