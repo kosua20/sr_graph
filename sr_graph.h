@@ -191,19 +191,20 @@ namespace sr_graph {
 		Graph & graph = _graphs[graph_id];
 		std::vector<float> gridData;
 		
-		float shiftH = (graph.maxx == graph.minx) ? 0.0f : fabs(stepx)/fabs(graph.maxx - graph.minx);
-		for(float x = -1.0f+graph.margin; x < 1.0f-graph.margin; x += shiftH){
-			_getLine(x, -1.0f+graph.margin, x, 1.0f-graph.margin, width, graph.ratio, gridData);
+		if(graph.maxx != graph.minx){
+			float shiftH =  2.0f*(1.0f-graph.margin)*fabs(stepx)/fabs(graph.maxx - graph.minx);
+			for(float x = -1.0f+graph.margin; x < 1.0f-graph.margin; x += shiftH){
+				_getLine(x, -1.0f+graph.margin, x, 1.0f-graph.margin, width, graph.ratio, gridData);
+			}
+			_getLine(1.0f - graph.margin, -1.0f+graph.margin, 1.0f - graph.margin, 1.0f-graph.margin, width, graph.ratio, gridData);
 		}
-		_getLine(1.0f - graph.margin, -1.0f+graph.margin, 1.0f - graph.margin, 1.0f-graph.margin, width, graph.ratio, gridData);
-		
-		float shiftV = (graph.maxy == graph.miny) ? 0.0f : fabs(stepy)/fabs(graph.maxy - graph.miny);
-		for(float y = -1.0f+graph.margin; y < 1.0f-graph.margin; y += shiftV){
-			_getLine(-1.0f+graph.margin, y, 1.0f-graph.margin, y, width, graph.ratio, gridData);
+		if(graph.maxy != graph.miny){
+			float shiftV = 2.0f*(1.0f-graph.margin)*fabs(stepy)/fabs(graph.maxy - graph.miny);
+			for(float y = -1.0f+graph.margin; y < 1.0f-graph.margin; y += shiftV){
+				_getLine(-1.0f+graph.margin, y, 1.0f-graph.margin, y, width, graph.ratio, gridData);
+			}
+			_getLine(-1.0f+graph.margin, 1.0f - graph.margin, 1.0f-graph.margin, 1.0f - graph.margin, width, graph.ratio, gridData);
 		}
-		_getLine(-1.0f+graph.margin, 1.0f - graph.margin, 1.0f-graph.margin, 1.0f - graph.margin, width, graph.ratio, gridData);
-		
-		
 		graph.colorGrid = { lines_r, lines_g, lines_b };
 		graph.countGrid = (GLsizei)(gridData.size()/2);
 		graph.idGrid = _setDataBuffer(&gridData[0], graph.countGrid);
@@ -263,9 +264,6 @@ namespace sr_graph {
 		glBindVertexArray(graph.idAxes);
 		glDrawArrays(GL_TRIANGLES, 0, graph.countAxes);
 		glBindVertexArray(0);
-		
-		
-		
 		
 		glUseProgram(0);
 		// RESTORE
