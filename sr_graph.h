@@ -42,7 +42,7 @@ namespace sr_graph {
 	GLuint _setDataBuffer(const float * data, const unsigned int count);
 	void _getLine(const float p0x, const float p0y, const float p1x, const float p1y, const float w, const float ratio, std::vector<float> & points);
 	void _getRectangle(const float p0x, const float p0y, const float p1x, const float p1y, const float w,  std::vector<float> & points);
-	void _getPoint(const float p0x, const float p0y, const float s, const float ratio, std::vector<float> & points);
+	void _getPoint(const float p0x, const float p0y, const float radius, const float ratio, std::vector<float> & points);
 	
 	static bool _isInit = false;
 	static unsigned int _nextGraphId = 0;
@@ -79,14 +79,18 @@ namespace sr_graph {
 		Color colorGrid;
 		
 		std::vector<Curve> curves;
+		std::vector<Curve> points;
 		
 	} Graph;
 
 	typedef struct {
 		GLuint idQuad;
 		GLuint pid;
+		GLuint ppid;
 		GLuint cid;
+		GLuint pcid;
 		GLuint rid;
+		GLuint prid;
 	} _InternalState ;
 	
 	static _InternalState _state;
@@ -273,13 +277,12 @@ namespace sr_graph {
 			const float x0 = ax*xs[i]+bx;
 			const float y0 = ay*ys[i]+by;
 			_getPoint(x0, y0, size, graph.ratio, curveData);
-			//std::cout << x0 << "," << y0 << std::endl;
 		}
 		Curve curve;
 		curve.color = {color_r, color_g, color_b};
 		curve.count = (GLsizei)(curveData.size()/2);
 		curve.id = _setDataBuffer(&curveData[0], curve.count);
-		graph.curves.push_back(curve);
+		graph.points.push_back(curve);
 		
 	}
 
@@ -382,6 +385,15 @@ namespace sr_graph {
 		glUniform3f(_state.cid, graph.colorAxes.r, graph.colorAxes.g, graph.colorAxes.b);
 		glBindVertexArray(graph.idAxes);
 		glDrawArrays(GL_TRIANGLES, 0, graph.countAxes);
+		
+		
+		glUseProgram(_state.ppid);
+		glUniform1f(_state.rid, finalRatio);
+		for(unsigned int i = 0; i < graph.points.size(); ++i){
+			glUniform3f(_state.pcid, graph.points[i].color.r, graph.points[i].color.g, graph.points[i].color.b);
+			glBindVertexArray(graph.points[i].id);
+			glDrawArrays(GL_TRIANGLES, 0, graph.points[i].count);
+		}
 		
 		glBindVertexArray(0);
 		glUseProgram(0);
@@ -488,10 +500,10 @@ namespace sr_graph {
 		points.push_back(dx); points.push_back(dy);
 	}
 	
-	void _getPoint(const float p0x, const float p0y, const float s, const float ratio, std::vector<float> & points) {
+	void _getPoint(const float p0x, const float p0y, const float radius, const float ratio, std::vector<float> & points) {
 		
-		const float wx = s * 0.5;
-		const float wy = s * 0.5 * ratio;
+		const float wx = radius;
+		const float wy = radius * ratio;
 		const float ax = p0x - wx;
 		const float bx = p0x + wx;
 		const float cx = p0x + wx;
@@ -531,12 +543,28 @@ namespace sr_graph {
 	"frag_Color.a = 1.0;" + "\n" +
 	"}" + "\n";
 	
-	static const std::string ffstr = std::string("#version 330\n") +
+	static const std::string pvstr =
+	std::string("#version 330\n") +
+	"layout(location = 0) in vec2 v;" + "\n" +
+	"uniform float ratio;" + "\n" +
+	"out vec2 coords;" + "\n" +
+	"void main(){" + "\n" +
+	"vec2 finalRatio = ratio < 1.0 ? vec2(1.0, ratio) : vec2(1.0/ratio, 1.0); " + "\n"
+	"gl_Position.xy = v * finalRatio;" + "\n" +
+	"gl_Position.zw = vec2(1.0);" + "\n" +
+	"int id = int(mod(gl_VertexID, 6));" + "\n" +
+	"bool uzero = (id == 0) || (id == 3) || (id == 5);" + "\n" +
+	"bool vzero = (id == 0) || (id == 3) || (id == 1);" + "\n" +
+	"coords = vec2(uzero ? -1.0 : 1.0, vzero ? -1.0 : 1.0);" + "\n" +
+	"}" + "\n";
+
+	
+	static const std::string pfstr = std::string("#version 330\n") +
+	"in vec2 coords;" + "\n" +
 	"uniform vec3 color;" + "\n" +
 	"out vec4 fragColor;" + "\n" +
 	"void main(){" + "\n" +
-	"vec2 pointDiff = gl_PointCoord.xy - 0.5;" + "\n" +
-	"fragColor = vec4(color, 1.0-smoothstep(0.4, 0.5, length(pointDiff)));" + "\n" +
+	"fragColor = vec4(color, 1.0-smoothstep(0.9, 1.0, length(coords)));" + "\n" +
 	"}" + "\n";
 	
 	
@@ -624,12 +652,14 @@ namespace sr_graph {
 	
 	void _internalSetup() {
 		_isInit = true;
-		const char * vertexPointString = vstr.c_str();
-		const char * fragmentPointString = fstr.c_str();
-		_state.pid = _createGLProgram(vertexPointString, fragmentPointString);
+		_state.pid = _createGLProgram(vstr.c_str(), fstr.c_str());
+		_state.ppid = _createGLProgram(pvstr.c_str(), pfstr.c_str());
 		glUseProgram(_state.pid);
 		_state.cid = glGetUniformLocation(_state.pid, "color");
 		_state.rid = glGetUniformLocation(_state.pid, "ratio");
+		glUseProgram(_state.ppid);
+		_state.pcid = glGetUniformLocation(_state.pid, "color");
+		_state.prid = glGetUniformLocation(_state.pid, "ratio");
 		glUseProgram(0);
 		const float quadData[12] = { -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f };
 		_state.idQuad = _setDataBuffer(quadData, 6);
