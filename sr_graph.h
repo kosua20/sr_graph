@@ -16,18 +16,16 @@ namespace sr_graph {
 	
 	extern void add_curve(const unsigned int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float width, const float color_r, const float color_g, const float color_b);
 	
-
-	extern void add_hist(const unsigned int graph_id, const unsigned int bins, const std::vector<float> & ys, const float color_r, const float color_g, const float color_b);
+	extern void add_hist(const unsigned int graph_id, const unsigned int bins, const std::vector<float> & ys, const float spacing, const float color_r, const float color_g, const float color_b);
+	
+	extern void add_points(const unsigned int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float size, const float color_r, const float color_g, const float color_b);
 	
 	extern void draw(const unsigned int graph_id, const float ratio);
 	
 	extern void free(const unsigned int graph_id);
 	/*
-	options(line width, point size) others ? or move them to setup ?
-	draw(width, height, scaling) // do we really need to know the viewport ?
 	labels() ?
-	clean() ?
-	global init ?*/
+	clean() ?*/
 	
 }
 
@@ -43,6 +41,8 @@ namespace sr_graph {
 	void _internalFree();
 	GLuint _setDataBuffer(const float * data, const unsigned int count);
 	void _getLine(const float p0x, const float p0y, const float p1x, const float p1y, const float w, const float ratio, std::vector<float> & points);
+	void _getRectangle(const float p0x, const float p0y, const float p1x, const float p1y, const float w,  std::vector<float> & points);
+	void _getPoint(const float p0x, const float p0y, const float s, const float ratio, std::vector<float> & points);
 	
 	static bool _isInit = false;
 	static unsigned int _nextGraphId = 0;
@@ -223,12 +223,11 @@ namespace sr_graph {
 		if(graph_id >= _nextGraphId || _graphs.count(graph_id) == 0){
 			return;
 		}
-		
-		Graph & graph = _graphs[graph_id];
 		if(xs.size() != ys.size() || xs.size() == 0){
 			return;
 		}
 		
+		Graph & graph = _graphs[graph_id];
 		
 		const float ax = (2.0f*(1.0f-graph.margin))/(graph.maxx - graph.minx);
 		const float bx = -1.0f + graph.margin - ax * graph.minx;
@@ -251,14 +250,80 @@ namespace sr_graph {
 		graph.curves.push_back(curve);
 		
 	}
-
-	void add_hist(const unsigned int graph_id, const unsigned int bins, const std::vector<float> & ys, const float color_r, const float color_g, const float color_b) {
+	
+	void add_points(const unsigned int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float size, const float color_r, const float color_g, const float color_b) {
 		
 		if(graph_id >= _nextGraphId || _graphs.count(graph_id) == 0){
 			return;
 		}
+		if(xs.size() != ys.size() || xs.size() == 0){
+			return;
+		}
 		
-		std::cout << "Histing graph " << graph_id << std::endl;
+		Graph & graph = _graphs[graph_id];
+		
+		const float ax = (2.0f*(1.0f-graph.margin))/(graph.maxx - graph.minx);
+		const float bx = -1.0f + graph.margin - ax * graph.minx;
+		const float ay = (2.0f*(1.0f-graph.margin))/(graph.maxy - graph.miny);
+		const float by = -1.0f + graph.margin - ay * graph.miny;
+		
+		std::vector<float> curveData;
+		
+		for(unsigned int i = 0; i < xs.size(); ++i){
+			const float x0 = ax*xs[i]+bx;
+			const float y0 = ay*ys[i]+by;
+			_getPoint(x0, y0, size, graph.ratio, curveData);
+			//std::cout << x0 << "," << y0 << std::endl;
+		}
+		Curve curve;
+		curve.color = {color_r, color_g, color_b};
+		curve.count = (GLsizei)(curveData.size()/2);
+		curve.id = _setDataBuffer(&curveData[0], curve.count);
+		graph.curves.push_back(curve);
+		
+	}
+
+	void add_hist(const unsigned int graph_id, const unsigned int bins, const std::vector<float> & ys, const float spacing, const float color_r, const float color_g, const float color_b) {
+		
+		if(graph_id >= _nextGraphId || _graphs.count(graph_id) == 0){
+			return;
+		}
+		if(ys.size() == 0){
+			return;
+		}
+		
+		Graph & graph = _graphs[graph_id];
+	
+		const float binSize = (graph.maxx - graph.minx)/(float)bins;
+		std::vector<int> binCounts(bins, 0);
+		for(unsigned int i = 0; i < ys.size(); ++i){
+			const int j = (unsigned int)floor((ys[i] - graph.minx)/binSize);
+			binCounts[j] += 1;
+		}
+		
+		std::vector<float> histData;
+		const float ax = (2.0f*(1.0f-graph.margin))/(graph.maxx - graph.minx);
+		const float bx = -1.0f + graph.margin - ax * graph.minx;
+		const float ay = (2.0f*(1.0f-graph.margin))/(graph.maxy - graph.miny);
+		const float by = -1.0f + graph.margin - ay * graph.miny;
+		const float binWidth = fmax(0.0f, 2.0f*(1.0 - graph.margin)/(float)bins - spacing);
+		for(unsigned int i = 0; i < bins; ++i){
+			if(binCounts[i] == 0){
+				continue;
+			}
+			float x0 = ax*(graph.minx+(float)(i+0.5)*binSize) + bx; //@TODO: check corner cases.
+			float y0 = by;
+			float y1 = ay * (float)binCounts[i] + by;
+			_getRectangle(x0, y0, x0, y1, binWidth, histData);
+		}
+		
+		
+		
+		Curve curve;
+		curve.color = {color_r, color_g, color_b};
+		curve.count = (GLsizei)(histData.size()/2);
+		curve.id = _setDataBuffer(&histData[0], curve.count);
+		graph.curves.push_back(curve);
 	}
 
 	void draw(const unsigned int graph_id, float ratio) {
@@ -281,7 +346,7 @@ namespace sr_graph {
 		
 		// Set states.
 		glDisable(GL_DEPTH_TEST);
-		glEnable(GL_CULL_FACE);
+		glDisable(GL_CULL_FACE);
 		glFrontFace(GL_CCW);
 		glCullFace(GL_BACK);
 		glEnable(GL_BLEND);
@@ -306,16 +371,16 @@ namespace sr_graph {
 		glDrawArrays(GL_TRIANGLES, 0, graph.countGrid);
 		glBindVertexArray(0);
 		
-		glUniform3f(_state.cid, graph.colorAxes.r, graph.colorAxes.g, graph.colorAxes.b);
-		glBindVertexArray(graph.idAxes);
-		glDrawArrays(GL_TRIANGLES, 0, graph.countAxes);
-		
 		
 		for(unsigned int i = 0; i < graph.curves.size(); ++i){
 			glUniform3f(_state.cid, graph.curves[i].color.r, graph.curves[i].color.g, graph.curves[i].color.b);
 			glBindVertexArray(graph.curves[i].id);
 			glDrawArrays(GL_TRIANGLES, 0, graph.curves[i].count);
 		}
+		
+		glUniform3f(_state.cid, graph.colorAxes.r, graph.colorAxes.g, graph.colorAxes.b);
+		glBindVertexArray(graph.idAxes);
+		glDrawArrays(GL_TRIANGLES, 0, graph.countAxes);
 		
 		glBindVertexArray(0);
 		glUseProgram(0);
@@ -355,6 +420,9 @@ namespace sr_graph {
 		// Free GL ressources;
 		glDeleteVertexArrays(1, &graph.idGrid);
 		glDeleteVertexArrays(1, &graph.idAxes);
+		for(unsigned int i = 0; i < graph.curves.size(); ++i){
+			glDeleteVertexArrays(1, &(graph.curves[i].id));
+		}
 		_graphs.erase(graph_id);
 	}
 	
@@ -397,6 +465,49 @@ namespace sr_graph {
 		 points.push_back(dx); points.push_back(dy);
 		 
 	 }
+	
+	
+	void _getRectangle(const float p0x, const float p0y, const float p1x, const float p1y, const float w,  std::vector<float> & points) {
+		
+		const float wx = w * 0.5;
+		const float ax = p0x - wx;
+		const float bx = p1x - wx;
+		const float cx = p1x + wx;
+		const float dx = p0x + wx;
+
+		const float ay = p0y;
+		const float by = p1y;
+		const float cy = p1y;
+		const float dy = p0y;
+		points.push_back(ax); points.push_back(ay);
+		points.push_back(bx); points.push_back(by);
+		points.push_back(cx); points.push_back(cy);
+		points.push_back(ax); points.push_back(ay);
+		points.push_back(cx); points.push_back(cy);
+		points.push_back(dx); points.push_back(dy);
+	}
+	
+	void _getPoint(const float p0x, const float p0y, const float s, const float ratio, std::vector<float> & points) {
+		
+		const float wx = s * 0.5;
+		const float wy = s * 0.5 * ratio;
+		const float ax = p0x - wx;
+		const float bx = p0x + wx;
+		const float cx = p0x + wx;
+		const float dx = p0x - wx;
+		
+		const float ay = p0y - wy;
+		const float by = p0y - wy;
+		const float cy = p0y + wy;
+		const float dy = p0y + wy;
+		
+		points.push_back(ax); points.push_back(ay);
+		points.push_back(bx); points.push_back(by);
+		points.push_back(cx); points.push_back(cy);
+		points.push_back(ax); points.push_back(ay);
+		points.push_back(cx); points.push_back(cy);
+		points.push_back(dx); points.push_back(dy);
+	}
 	
 	// Shaders strings
 	
