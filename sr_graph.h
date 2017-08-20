@@ -1,41 +1,40 @@
 /* sr_graph - v1.0 - public domain plot tracer ; no warranties implied, use at your own risk.
+
+ Do this:
+	 #define SRG_IMPLEMENTATION_SR_GRAPH
+	 before you include this file in *one* C++ file to create the implementation.
+ You will also need to include some OpenGL headers or headers including them before including this one.
+
+	 // i.e. it should look like this:
+	 #include <gl.h>
+	 #include ...
+	 #include ...
+	 #define SRG_IMPLEMENTATION_SR_GRAPH
+	 #include "srg_graph.h"
+
+
+ See below the exact list of types and functions expected from OpenGL.
+	 @TODO
  
-Do this:
-	#define SRG_IMPLEMENTATION_SR_GRAPH
-	before you include this file in *one* C++ file to create the implementation.
-You will also need to include some OpenGL headers or headers including them before including this one.
-See below the exact list of types and functions expected from OpenGL.
-
-	// i.e. it should look like this:
-	#include <gl.h>
-	#include ...
-	#include ...
-	#define SRG_IMPLEMENTATION_SR_GRAPH
-	#include "srg_graph.h"
-
-Notes:
-
-Release 1.0 notes:
-
-Revision history
-
-License:
-	This software is in the public domain. Where that dedication is not
-	recognized, you are granted a perpetual, irrevocable license to copy
-	and modify this file however you want.
-
-
+ Usage:
+	 @TODO
+ 
+ Release 1.0 notes:
+	 @TODO
+ 
+ Revision history
+	 @TODO
+ 
+ License:
+	 This software is in the public domain. Where that dedication is not
+	 recognized, you are granted a perpetual, irrevocable license to copy
+	 and modify this file however you want.
 */
 
 #ifndef SRG_INCLUDE_SR_GRAPH_H
 #define SRG_INCLUDE_SR_GRAPH_H
-// do we need 
-/*#ifdef STB_IMAGE_STATIC
-#define STBIDEF static
-#else
-#define STBIDEF extern
-#endif*/
-// Documentation here
+
+// @TODO: extern/static
 
 #include <stdio.h>
 #include <math.h>
@@ -73,9 +72,10 @@ namespace sr_graph {
 #endif
 
 #ifdef SRG_IMPLEMENTATION_SR_GRAPH
-// put headers again here ?
+
+// @TODO: headers?
+
 namespace sr_graph {
-	
 	
 	/// Internal structs.
 	
@@ -146,12 +146,14 @@ namespace sr_graph {
 	void _srg_internalSetup();
 	GLuint _srg_setDataBuffer(const float * data, const unsigned int count);
 	void _srg_getLine(const float p0x, const float p0y, const float p1x, const float p1y, const float w, const float ratio, std::vector<float> & points);
-	void _srg_getRectangle(const float p0x, const float p0y, const float p1x, const float p1y, const float w,  std::vector<float> & points);
+	void _srg_getRectangle(const float p0x, const float p0y, const float p1x, const float p1y, const float w, std::vector<float> & points);
 	void _srg_getPoint(const float p0x, const float p0y, const float radius, const float ratio, std::vector<float> & points);
 	void _srg_generateAxis(const _srg_Orientation orientation, const float margin, const float ratio, const float width, const float mini, const float maxi, const bool axisOnSide, const bool reverse, std::vector<float> & axisData);
 	void _srg_generateCurve(const _srg_Graph & graph, const std::vector<float> & xs, const std::vector<float> & ys, _srg_Curve & curve);
 	void _srg_generatePoints(const _srg_Graph & graph, const std::vector<float> & xs, const std::vector<float> & ys, _srg_Curve & curve);
 	void _srg_generateHist(const _srg_Graph & graph, const std::vector<float> & ys, _srg_Curve & curve);
+	
+	
 	/// Exposed functions.
 	
 	int setup(const float minx, const float maxx, const float miny, const float maxy, const float ratio, const float margins, const float bg_r, const float bg_g, const float bg_b){
@@ -175,7 +177,7 @@ namespace sr_graph {
 	}
 	
 
-    void add_axes(const int graph_id, const float width, const float axis_r, const float axis_g, const float axis_b, const bool axisOnSide){
+	void add_axes(const int graph_id, const float width, const float axis_r, const float axis_g, const float axis_b, const bool axisOnSide){
 		if(graph_id < 0 || graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
 		}
@@ -204,7 +206,7 @@ namespace sr_graph {
 		const float by = -1.0f + graph.margin - ay * graph.miny;
 		
 		if(stepx != 0.0f && graph.maxx != graph.minx){
-			float shiftH =  abs(ax)*abs(stepx);
+			float shiftH = abs(ax)*abs(stepx);
 			if(fromZero){
 				float xZero = bx;
 				while(xZero < -1.0f + graph.margin){
@@ -444,7 +446,7 @@ namespace sr_graph {
 		glCullFace(cullFaceMode);
 		glBlendFunc(blendSrcMode, blendDstMode);
 		glPolygonMode(GL_FRONT, polygonModes[0] );
-		glPolygonMode(GL_BACK,  polygonModes[1] );
+		glPolygonMode(GL_BACK, polygonModes[1] );
 		
 	}
 
@@ -523,7 +525,7 @@ namespace sr_graph {
 	}
 	
 	
-	void _srg_getRectangle(const float p0x, const float p0y, const float p1x, const float p1y, const float w,  std::vector<float> & points) {
+	void _srg_getRectangle(const float p0x, const float p0y, const float p1x, const float p1y, const float w, std::vector<float> & points) {
 		
 		const float wx = w * 0.5;
 		const float ax = p0x - wx;
