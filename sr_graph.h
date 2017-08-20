@@ -1,12 +1,41 @@
-/**
+/* sr_graph - v1.0 - public domain plot tracer ; no warranties implied, use at your own risk.
+ 
+Do this:
+	#define SRG_IMPLEMENTATION_SR_GRAPH
+	before you include this file in *one* C++ file to create the implementation.
+You will also need to include some OpenGL headers or headers including them before including this one.
+See below the exact list of types and functions expected from OpenGL.
 
+	// i.e. it should look like this:
+	#include <gl.h>
+	#include ...
+	#include ...
+	#define SRG_IMPLEMENTATION_SR_GRAPH
+	#include "srg_graph.h"
+
+Notes:
+
+Release 1.0 notes:
+
+Revision history
+
+License:
+	This software is in the public domain. Where that dedication is not
+	recognized, you are granted a perpetual, irrevocable license to copy
+	and modify this file however you want.
 
 
 */
 
 #ifndef SRG_INCLUDE_SR_GRAPH_H
 #define SRG_INCLUDE_SR_GRAPH_H
-
+// do we need 
+/*#ifdef STB_IMAGE_STATIC
+#define STBIDEF static
+#else
+#define STBIDEF extern
+#endif*/
+// Documentation here
 
 #include <stdio.h>
 #include <math.h>
@@ -18,7 +47,7 @@ namespace sr_graph {
 	
 	extern void add_axes(const unsigned int graph_id, const float width, const float axis_r, const float axis_g, const float axis_b, const bool axisOnSide);
 	
-	extern void add_grid(const unsigned int graph_id, const float stepx, const float stepy, const float width, const float lines_r, const float lines_g, const float lines_b);
+	extern void add_grid(const unsigned int graph_id, const float stepx, const float stepy, const float width, const float lines_r, const float lines_g, const float lines_b, const bool fromZero);
 	
 	extern void add_curve(const unsigned int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float width, const float color_r, const float color_g, const float color_b);
 	
@@ -37,7 +66,7 @@ namespace sr_graph {
 #endif
 
 #ifdef SRG_IMPLEMENTATION_SR_GRAPH
-
+// put headers again here ?
 namespace sr_graph {
 	
 	
@@ -110,7 +139,7 @@ namespace sr_graph {
 	void _srg_getLine(const float p0x, const float p0y, const float p1x, const float p1y, const float w, const float ratio, std::vector<float> & points);
 	void _srg_getRectangle(const float p0x, const float p0y, const float p1x, const float p1y, const float w,  std::vector<float> & points);
 	void _srg_getPoint(const float p0x, const float p0y, const float radius, const float ratio, std::vector<float> & points);
-	void _srg_generateAxis(const _srg_Orientation orientation, const float margin, const float ratio, const float width, const float mini, const float maxi, const bool axisOnSide, std::vector<float> & axisData);
+	void _srg_generateAxis(const _srg_Orientation orientation, const float margin, const float ratio, const float width, const float mini, const float maxi, const bool axisOnSide, const bool reverse, std::vector<float> & axisData);
 	
 	
 	/// Exposed functions.
@@ -143,8 +172,8 @@ namespace sr_graph {
 		_srg_Graph & graph = _srg_graphs[graph_id];
 		/// Generate data for axis.
 		std::vector<float> axisData;
-		_srg_generateAxis(HORIZONTAL, graph.margin, graph.ratio, width, graph.miny, graph.maxy, axisOnSide, axisData);
-		_srg_generateAxis(VERTICAL, graph.margin, graph.ratio, width, graph.minx, graph.maxx, axisOnSide, axisData);
+		_srg_generateAxis(HORIZONTAL, graph.margin, graph.ratio, width, graph.miny, graph.maxy, axisOnSide, graph.minx > graph.maxx, axisData);
+		_srg_generateAxis(VERTICAL, graph.margin, graph.ratio, width, graph.minx, graph.maxx, axisOnSide, graph.miny > graph.maxy, axisData);
 
 		graph.colorAxes = { axis_r, axis_g, axis_b };
 		graph.countAxes = (GLsizei)(axisData.size()/2);
@@ -152,26 +181,63 @@ namespace sr_graph {
 	}
 	
 	
-	void add_grid(const unsigned int graph_id, const float stepx, const float stepy, const float width, const float lines_r, const float lines_g, const float lines_b) {
+	void add_grid(const unsigned int graph_id, const float stepx, const float stepy, const float width, const float lines_r, const float lines_g, const float lines_b, const bool fromZero) {
 		if(graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
 		}
 		_srg_Graph & graph = _srg_graphs[graph_id];
 		std::vector<float> gridData;
 		
+		const float ax = (2.0f*(1.0f-graph.margin))/(graph.maxx - graph.minx);
+		const float bx = -1.0f + graph.margin - ax * graph.minx;
+		const float ay = (2.0f*(1.0f-graph.margin))/(graph.maxy - graph.miny);
+		const float by = -1.0f + graph.margin - ay * graph.miny;
+		
 		if(stepx != 0.0f && graph.maxx != graph.minx){
-			float shiftH =  2.0f*(1.0f-graph.margin)*abs(stepx)/abs(graph.maxx - graph.minx);
-			for(float x = -1.0f+graph.margin; x < 1.0f-graph.margin; x += shiftH){
-				_srg_getLine(x, -1.0f+graph.margin, x, 1.0f-graph.margin, width, graph.ratio, gridData);
+			float shiftH =  abs(ax)*abs(stepx);
+			if(fromZero){
+				float xZero = bx;
+				while(xZero < -1.0f + graph.margin){
+					xZero += shiftH;
+				}
+				while(xZero > 1.0f - graph.margin){
+					xZero -= shiftH;
+				}
+				for(float xi = xZero; xi >= -1.0f+graph.margin; xi -= shiftH){
+					_srg_getLine(xi, -1.0f+graph.margin, xi, 1.0f-graph.margin, width, graph.ratio, gridData);
+				}
+				for(float xi = xZero+shiftH; xi <= 1.0f-graph.margin; xi += shiftH){
+					_srg_getLine(xi, -1.0f+graph.margin, xi, 1.0f-graph.margin, width, graph.ratio, gridData);
+				}
+			} else {
+				for(float x = -1.0f+graph.margin; x < 1.0f-graph.margin; x += shiftH){
+					_srg_getLine(x, -1.0f+graph.margin, x, 1.0f-graph.margin, width, graph.ratio, gridData);
+				}
+				_srg_getLine(1.0f - graph.margin, -1.0f+graph.margin, 1.0f - graph.margin, 1.0f-graph.margin, width, graph.ratio, gridData);
 			}
-			_srg_getLine(1.0f - graph.margin, -1.0f+graph.margin, 1.0f - graph.margin, 1.0f-graph.margin, width, graph.ratio, gridData);
 		}
 		if(stepy != 0.0f && graph.maxy != graph.miny){
-			float shiftV = 2.0f*(1.0f-graph.margin)*abs(stepy)/abs(graph.maxy - graph.miny);
-			for(float y = -1.0f+graph.margin; y < 1.0f-graph.margin; y += shiftV){
-				_srg_getLine(-1.0f+graph.margin, y, 1.0f-graph.margin, y, width, graph.ratio, gridData);
+			float shiftV = abs(ay)*abs(stepy);
+			if(fromZero){
+				float yZero = by;
+				while(yZero < -1.0f + graph.margin){
+					yZero += shiftV;
+				}
+				while(yZero > 1.0f - graph.margin){
+					yZero -= shiftV;
+				}
+				for(float yi = yZero; yi >= -1.0f+graph.margin; yi -= shiftV){
+					_srg_getLine(-1.0f+graph.margin, yi, 1.0f-graph.margin, yi, width, graph.ratio, gridData);
+				}
+				for(float yi = yZero+shiftV; yi <= 1.0f-graph.margin; yi += shiftV){
+					_srg_getLine(-1.0f+graph.margin, yi, 1.0f-graph.margin, yi, width, graph.ratio, gridData);
+				}
+			} else {
+				for(float y = -1.0f+graph.margin; y < 1.0f-graph.margin; y += shiftV){
+					_srg_getLine(-1.0f+graph.margin, y, 1.0f-graph.margin, y, width, graph.ratio, gridData);
+				}
+				_srg_getLine(-1.0f+graph.margin, 1.0f - graph.margin, 1.0f-graph.margin, 1.0f - graph.margin, width, graph.ratio, gridData);
 			}
-			_srg_getLine(-1.0f+graph.margin, 1.0f - graph.margin, 1.0f-graph.margin, 1.0f - graph.margin, width, graph.ratio, gridData);
 		}
 		graph.colorGrid = { lines_r, lines_g, lines_b };
 		graph.countGrid = (GLsizei)(gridData.size()/2);
@@ -508,22 +574,21 @@ namespace sr_graph {
 	}
 	
 	
-	void _srg_generateAxis(const _srg_Orientation orientation, const float margin, const float ratio, const float width, const float mini, const float maxi, const bool axisOnSide, std::vector<float> & axisData){
+	void _srg_generateAxis(const _srg_Orientation orientation, const float margin, const float ratio, const float width, const float mini, const float maxi, const bool axisOnSide, const bool reverse, std::vector<float> & axisData){
 		float hx0 = -1.0f+margin;
 		float hx1 = 1.0f-margin;
 		float hy;
-		bool reverse = maxi < mini;
 		// Three positions.
 		if(axisOnSide || 0.0 <= fmin(mini, maxi)){
 			// Axis on the bottom
 			hy = -1.0f+margin;
-			if(!axisOnSide && reverse){
+			if(!axisOnSide && maxi < mini){
 				hy *= -1.0f;
 			}
 		} else if (0 >= fmax(maxi, mini)){
 			// Axis on the top
 			hy = 1.0f-margin;
-			if(reverse){
+			if(maxi < mini){
 				hy *= -1.0f;
 			}
 		} else {
