@@ -11,7 +11,6 @@
 #include <stdio.h>
 #include <math.h>
 #include <vector>
-#include <map>
 
 namespace sr_graph {
 	
@@ -29,7 +28,7 @@ namespace sr_graph {
 	
 	extern void draw(const unsigned int graph_id, const float ratio = 0.0f);
 	
-	extern void free(const unsigned int graph_id, const bool erase = true);
+	extern void free(const unsigned int graph_id);
 	
 	extern void free();
 	
@@ -64,13 +63,14 @@ namespace sr_graph {
 		float maxy;
 		float ratio;
 		float margin;
+		bool freed;
 		
 		GLuint idAxes;
-		GLuint countAxes;
+		GLsizei countAxes;
 		_srg_Color colorAxes;
 
 		GLuint idGrid;
-		GLuint countGrid;
+		GLsizei countGrid;
 		_srg_Color colorGrid;
 		
 		std::vector<_srg_Curve> curves;
@@ -99,9 +99,8 @@ namespace sr_graph {
 	/// Internal variables.
 	
 	static bool _srg_isInit = false;
-	static unsigned int _srg_nextGraphId = 0;
 	static _srg_InternalState _srg_state;
-	static std::map<unsigned int, _srg_Graph> _srg_graphs;
+	static std::vector<_srg_Graph> _srg_graphs;
 
 	
 	/// Foreward declarations.
@@ -123,6 +122,7 @@ namespace sr_graph {
 		}
 		// Create a graph with the given infos.
 		_srg_Graph graph;
+		graph.freed = false;
 		graph.color = {bg_r, bg_g, bg_b };
 		graph.minx = minx;
 		graph.maxx = maxx;
@@ -131,13 +131,13 @@ namespace sr_graph {
 		graph.ratio = abs(ratio);
 		graph.margin = fmin(1.0f, fmax(0.0f, abs(margins*2.0)));
 		// Store it and increment the graph counter.
-		_srg_graphs[_srg_nextGraphId] = graph;
-		return _srg_nextGraphId++;
+		_srg_graphs.push_back(graph);
+		return (int)_srg_graphs.size()-1;
 	}
 	
 
     void add_axes(const unsigned int graph_id, const float width, const float axis_r, const float axis_g, const float axis_b, const bool axisOnSide){
-		if(graph_id >= _srg_nextGraphId || _srg_graphs.count(graph_id) == 0){
+		if(graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
 		}
 		_srg_Graph & graph = _srg_graphs[graph_id];
@@ -153,7 +153,7 @@ namespace sr_graph {
 	
 	
 	void add_grid(const unsigned int graph_id, const float stepx, const float stepy, const float width, const float lines_r, const float lines_g, const float lines_b) {
-		if(graph_id >= _srg_nextGraphId || _srg_graphs.count(graph_id) == 0){
+		if(graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
 		}
 		_srg_Graph & graph = _srg_graphs[graph_id];
@@ -181,7 +181,7 @@ namespace sr_graph {
 	
 	void add_curve(const unsigned int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float width, const float color_r, const float color_g, const float color_b) {
 		
-		if(graph_id >= _srg_nextGraphId || _srg_graphs.count(graph_id) == 0){
+		if(graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
 		}
 		if(xs.size() != ys.size() || xs.size() == 0){
@@ -213,7 +213,7 @@ namespace sr_graph {
 	
 	void add_points(const unsigned int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float size, const float color_r, const float color_g, const float color_b) {
 		
-		if(graph_id >= _srg_nextGraphId || _srg_graphs.count(graph_id) == 0){
+		if(graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
 		}
 		if(xs.size() != ys.size() || xs.size() == 0){
@@ -243,7 +243,7 @@ namespace sr_graph {
 	
 	void add_hist(const unsigned int graph_id, const unsigned int bins, const std::vector<float> & ys, const float spacing, const float color_r, const float color_g, const float color_b) {
 		
-		if(graph_id >= _srg_nextGraphId || _srg_graphs.count(graph_id) == 0){
+		if(graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
 		}
 		if(ys.size() == 0){
@@ -285,7 +285,7 @@ namespace sr_graph {
 	
 	void draw(const unsigned int graph_id, float ratio) {
 		
-		if(graph_id >= _srg_nextGraphId || _srg_graphs.count(graph_id) == 0){
+		if(graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
 		}
 		
@@ -390,11 +390,11 @@ namespace sr_graph {
 	}
 
 	
-	void free(const unsigned int graph_id, const bool erase) {
-		if(graph_id >= _srg_nextGraphId || _srg_graphs.count(graph_id) == 0){
+	void free(const unsigned int graph_id) {
+		if(graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
 		}
-		const _srg_Graph & graph = _srg_graphs[graph_id];
+		_srg_Graph & graph = _srg_graphs[graph_id];
 		// Free vertex arrays.
 		glDeleteVertexArrays(1, &graph.idGrid);
 		glDeleteVertexArrays(1, &graph.idAxes);
@@ -407,16 +407,13 @@ namespace sr_graph {
 		for(unsigned int i = 0; i < graph.points.size(); ++i){
 			glDeleteVertexArrays(1, &(graph.points[i].id));
 		}
-		// If needed remove the graph from the map. @TODO: use array + nullptr instead?
-		if(erase){
-			_srg_graphs.erase(graph_id);
-		}
+		graph.freed = true;
 	}
 	
 	void free(){
 		// Free each graph and then clear the map.
-		for(auto & graph : _srg_graphs){
-			free(graph.first, false);
+		for(unsigned int i = 0; i < _srg_graphs.size(); ++i){
+			free(i);
 		}
 		_srg_graphs.clear();
 		// Delete the programs and quad data.
