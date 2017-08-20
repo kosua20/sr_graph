@@ -167,8 +167,8 @@ namespace sr_graph {
 		graph.maxx = maxx;
 		graph.miny = miny;
 		graph.maxy = maxy;
-		graph.ratio = abs(ratio);
-		graph.margin = fmin(1.0f, fmax(0.0f, abs(margins*2.0)));
+		graph.ratio = fabs(ratio);
+		graph.margin = fmin(1.0f, fmax(0.0f, fabs(margins*2.0)));
 		// Store it.
 		_srg_graphs.push_back(graph);
 		return (int)_srg_graphs.size()-1;
@@ -204,7 +204,7 @@ namespace sr_graph {
 		const float by = -1.0f + graph.margin - ay * graph.miny;
 		
 		if(stepx != 0.0f && graph.maxx != graph.minx){
-			float shiftH = abs(ax)*abs(stepx);
+			float shiftH = fabs(ax)*fabs(stepx);
 			if(fromZero){
 				float xZero = bx;
 				while(xZero < -1.0f + graph.margin){
@@ -227,7 +227,7 @@ namespace sr_graph {
 			}
 		}
 		if(stepy != 0.0f && graph.maxy != graph.miny){
-			float shiftV = abs(ay)*abs(stepy);
+			float shiftV = fabs(ay)*fabs(stepy);
 			if(fromZero){
 				float yZero = by;
 				while(yZero < -1.0f + graph.margin){
