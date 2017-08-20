@@ -40,24 +40,31 @@ License:
 #include <stdio.h>
 #include <math.h>
 #include <vector>
+#include <iostream>
 
 namespace sr_graph {
 	
 	extern int setup(const float minx, const float maxx, const float miny, const float maxy, const float ratio, const float margins, const float bg_r, const float bg_g, const float bg_b);
 	
-	extern void add_axes(const unsigned int graph_id, const float width, const float axis_r, const float axis_g, const float axis_b, const bool axisOnSide);
+	extern void add_axes(const int graph_id, const float width, const float axis_r, const float axis_g, const float axis_b, const bool axisOnSide);
 	
-	extern void add_grid(const unsigned int graph_id, const float stepx, const float stepy, const float width, const float lines_r, const float lines_g, const float lines_b, const bool fromZero);
+	extern void add_grid(const int graph_id, const float stepx, const float stepy, const float width, const float lines_r, const float lines_g, const float lines_b, const bool fromZero);
 	
-	extern void add_curve(const unsigned int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float width, const float color_r, const float color_g, const float color_b);
+	extern int add_curve(const int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float width, const float color_r, const float color_g, const float color_b);
 	
-	extern void add_hist(const unsigned int graph_id, const unsigned int bins, const std::vector<float> & ys, const float spacing, const float color_r, const float color_g, const float color_b);
+	extern void update_curve(const int graph_id, const int curve_id, const std::vector<float> & xs, const std::vector<float> & ys);
 	
-	extern void add_points(const unsigned int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float size, const float color_r, const float color_g, const float color_b);
+	extern int add_hist(const int graph_id, const unsigned int bins, const std::vector<float> & ys, const float spacing, const float color_r, const float color_g, const float color_b);
 	
-	extern void draw(const unsigned int graph_id, const float ratio = 0.0f);
+	extern void update_hist(const int graph_id, const int hist_id, const std::vector<float> & ys);
 	
-	extern void free(const unsigned int graph_id);
+	extern int add_points(const int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float size, const float color_r, const float color_g, const float color_b);
+	
+	extern void update_points(const int graph_id, const int points_id, const std::vector<float> & xs, const std::vector<float> & ys);
+	
+	extern void draw(const int graph_id, const float ratio = 0.0f);
+	
+	extern void free(const int graph_id);
 	
 	extern void free();
 	
@@ -82,6 +89,8 @@ namespace sr_graph {
 		GLuint id;
 		GLsizei count;
 		_srg_Color color;
+		float param0;
+		int param1;
 	} _srg_Curve;
 	
 	typedef struct {
@@ -140,8 +149,9 @@ namespace sr_graph {
 	void _srg_getRectangle(const float p0x, const float p0y, const float p1x, const float p1y, const float w,  std::vector<float> & points);
 	void _srg_getPoint(const float p0x, const float p0y, const float radius, const float ratio, std::vector<float> & points);
 	void _srg_generateAxis(const _srg_Orientation orientation, const float margin, const float ratio, const float width, const float mini, const float maxi, const bool axisOnSide, const bool reverse, std::vector<float> & axisData);
-	
-	
+	void _srg_generateCurve(const _srg_Graph & graph, const std::vector<float> & xs, const std::vector<float> & ys, _srg_Curve & curve);
+	void _srg_generatePoints(const _srg_Graph & graph, const std::vector<float> & xs, const std::vector<float> & ys, _srg_Curve & curve);
+	void _srg_generateHist(const _srg_Graph & graph, const std::vector<float> & ys, _srg_Curve & curve);
 	/// Exposed functions.
 	
 	int setup(const float minx, const float maxx, const float miny, const float maxy, const float ratio, const float margins, const float bg_r, const float bg_g, const float bg_b){
@@ -159,14 +169,14 @@ namespace sr_graph {
 		graph.maxy = maxy;
 		graph.ratio = abs(ratio);
 		graph.margin = fmin(1.0f, fmax(0.0f, abs(margins*2.0)));
-		// Store it and increment the graph counter.
+		// Store it.
 		_srg_graphs.push_back(graph);
 		return (int)_srg_graphs.size()-1;
 	}
 	
 
-    void add_axes(const unsigned int graph_id, const float width, const float axis_r, const float axis_g, const float axis_b, const bool axisOnSide){
-		if(graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
+    void add_axes(const int graph_id, const float width, const float axis_r, const float axis_g, const float axis_b, const bool axisOnSide){
+		if(graph_id < 0 || graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
 		}
 		_srg_Graph & graph = _srg_graphs[graph_id];
@@ -181,8 +191,8 @@ namespace sr_graph {
 	}
 	
 	
-	void add_grid(const unsigned int graph_id, const float stepx, const float stepy, const float width, const float lines_r, const float lines_g, const float lines_b, const bool fromZero) {
-		if(graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
+	void add_grid(const int graph_id, const float stepx, const float stepy, const float width, const float lines_r, const float lines_g, const float lines_b, const bool fromZero) {
+		if(graph_id < 0 || graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
 		}
 		_srg_Graph & graph = _srg_graphs[graph_id];
@@ -245,113 +255,96 @@ namespace sr_graph {
 	}
 	
 	
-	void add_curve(const unsigned int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float width, const float color_r, const float color_g, const float color_b) {
+	int add_curve(const int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float width, const float color_r, const float color_g, const float color_b){
 		
-		if(graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
-			return;
+		if(graph_id < 0 || graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
+			return -1;
 		}
-		if(xs.size() != ys.size() || xs.size() == 0){
-			return;
-		}
-		
 		_srg_Graph & graph = _srg_graphs[graph_id];
-		const float ax = (2.0f*(1.0f-graph.margin))/(graph.maxx - graph.minx);
-		const float bx = -1.0f + graph.margin - ax * graph.minx;
-		const float ay = (2.0f*(1.0f-graph.margin))/(graph.maxy - graph.miny);
-		const float by = -1.0f + graph.margin - ay * graph.miny;
-		std::vector<float> curveData;
-		float x0 = ax*xs[0]+bx;
-		float y0 = ay*ys[0]+by;
-		for(unsigned int i = 1; i < xs.size(); ++i){
-			const float x1 = ax*xs[i]+bx;
-			const float y1 = ay*ys[i]+by;
-			_srg_getLine(x0, y0, x1, y1, width, graph.ratio, curveData);
-			x0 = x1;
-			y0 = y1;
-		}
 		_srg_Curve curve;
 		curve.color = {color_r, color_g, color_b};
-		curve.count = (GLsizei)(curveData.size()/2);
-		curve.id = _srg_setDataBuffer(&curveData[0], curve.count);
+		curve.param0 = width;
+		_srg_generateCurve(graph, xs, ys, curve);
 		graph.curves.push_back(curve);
+		return (int)graph.curves.size()-1;
 	}
 	
 	
-	void add_points(const unsigned int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float size, const float color_r, const float color_g, const float color_b) {
+	void update_curve(const int graph_id, const int curve_id, const std::vector<float> & xs, const std::vector<float> & ys) {
 		
-		if(graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
+		if(graph_id < 0 || graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
 		}
-		if(xs.size() != ys.size() || xs.size() == 0){
-			return;
-		}
-		
 		_srg_Graph & graph = _srg_graphs[graph_id];
-		const float ax = (2.0f*(1.0f-graph.margin))/(graph.maxx - graph.minx);
-		const float bx = -1.0f + graph.margin - ax * graph.minx;
-		const float ay = (2.0f*(1.0f-graph.margin))/(graph.maxy - graph.miny);
-		const float by = -1.0f + graph.margin - ay * graph.miny;
-		
-		std::vector<float> curveData;
-		
-		for(unsigned int i = 0; i < xs.size(); ++i){
-			const float x0 = ax*xs[i]+bx;
-			const float y0 = ay*ys[i]+by;
-			_srg_getPoint(x0, y0, size, graph.ratio, curveData);
+		if(curve_id < 0 || curve_id >= graph.curves.size()){
+			return;
 		}
+		_srg_Curve & curve = graph.curves[curve_id];
+		_srg_generateCurve(graph, xs, ys, curve);
+	}
+	
+	
+	int add_points(const int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float size, const float color_r, const float color_g, const float color_b) {
+		
+		if(graph_id < 0 || graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
+			return -1;
+		}
+		_srg_Graph & graph = _srg_graphs[graph_id];
 		_srg_Curve curve;
 		curve.color = {color_r, color_g, color_b};
-		curve.count = (GLsizei)(curveData.size()/2);
-		curve.id = _srg_setDataBuffer(&curveData[0], curve.count);
+		curve.param0 = size;
+		_srg_generatePoints(graph, xs, ys, curve);
 		graph.points.push_back(curve);
+		return (int)graph.points.size()-1;
 	}
-
 	
-	void add_hist(const unsigned int graph_id, const unsigned int bins, const std::vector<float> & ys, const float spacing, const float color_r, const float color_g, const float color_b) {
+	
+	void update_points(const int graph_id, const int curve_id, const std::vector<float> & xs, const std::vector<float> & ys) {
 		
-		if(graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
+		if(graph_id < 0 || graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
 		}
-		if(ys.size() == 0){
-			return;
-		}
-		
 		_srg_Graph & graph = _srg_graphs[graph_id];
+		if(curve_id < 0 || curve_id >= graph.points.size()){
+			return;
+		}
+		_srg_Curve & curve = graph.points[curve_id];
+		_srg_generatePoints(graph, xs, ys, curve);
+	}
 	
-		const float binSize = (graph.maxx - graph.minx)/(float)bins;
-		std::vector<int> binCounts(bins, 0);
-		for(unsigned int i = 0; i < ys.size(); ++i){
-			const int j = (unsigned int)floor((ys[i] - graph.minx)/binSize);
-			binCounts[j] += 1;
-		}
+	
+	int add_hist(const int graph_id, const unsigned int bins, const std::vector<float> & ys, const float spacing, const float color_r, const float color_g, const float color_b) {
 		
-		std::vector<float> histData;
-		const float ax = (2.0f*(1.0f-graph.margin))/(graph.maxx - graph.minx);
-		const float bx = -1.0f + graph.margin - ax * graph.minx;
-		const float ay = (2.0f*(1.0f-graph.margin))/(graph.maxy - graph.miny);
-		const float by = -1.0f + graph.margin - ay * graph.miny;
-		const float binWidth = fmax(0.0f, 2.0f*(1.0 - graph.margin)/(float)bins - spacing);
-		for(unsigned int i = 0; i < bins; ++i){
-			if(binCounts[i] == 0){
-				continue;
-			}
-			float x0 = ax*(graph.minx+(float)(i+0.5)*binSize) + bx; //@TODO: check corner cases.
-			float y0 = by;
-			float y1 = ay * (float)binCounts[i] + by;
-			_srg_getRectangle(x0, y0, x0, y1, binWidth, histData);
+		if(graph_id < 0 || graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
+			return -1;
 		}
-		
+		_srg_Graph & graph = _srg_graphs[graph_id];
 		_srg_Curve curve;
 		curve.color = {color_r, color_g, color_b};
-		curve.count = (GLsizei)(histData.size()/2);
-		curve.id = _srg_setDataBuffer(&histData[0], curve.count);
+		curve.param0 = spacing;
+		curve.param1 = bins;
+		_srg_generateHist(graph, ys, curve);
 		graph.hists.push_back(curve);
+		return (int)graph.hists.size()-1;
+	}
+	
+	void update_hist(const int graph_id, const int curve_id, const std::vector<float> & ys) {
+		
+		if(graph_id < 0 || graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
+			return;
+		}
+		_srg_Graph & graph = _srg_graphs[graph_id];
+		if(curve_id < 0 || curve_id >= graph.hists.size()){
+			return;
+		}
+		_srg_Curve & curve = graph.hists[curve_id];
+		_srg_generateHist(graph, ys, curve);
 	}
 
 	
-	void draw(const unsigned int graph_id, float ratio) {
+	void draw(const int graph_id, float ratio) {
 		
-		if(graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
+		if(graph_id < 0 || graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
 		}
 		
@@ -456,8 +449,8 @@ namespace sr_graph {
 	}
 
 	
-	void free(const unsigned int graph_id) {
-		if(graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
+	void free(const int graph_id) {
+		if(graph_id < 0 || graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
 		}
 		_srg_Graph & graph = _srg_graphs[graph_id];
@@ -623,6 +616,85 @@ namespace sr_graph {
 			}
 		}
 		
+	}
+	
+	void _srg_generateCurve(const _srg_Graph & graph, const std::vector<float> & xs, const std::vector<float> & ys, _srg_Curve & curve) {
+		if(xs.size() != ys.size() || xs.size() == 0){
+			return;
+		}
+		
+		const float ax = (2.0f*(1.0f-graph.margin))/(graph.maxx - graph.minx);
+		const float bx = -1.0f + graph.margin - ax * graph.minx;
+		const float ay = (2.0f*(1.0f-graph.margin))/(graph.maxy - graph.miny);
+		const float by = -1.0f + graph.margin - ay * graph.miny;
+		std::vector<float> curveData;
+		float x0 = ax*xs[0]+bx;
+		float y0 = ay*ys[0]+by;
+		for(unsigned int i = 1; i < xs.size(); ++i){
+			const float x1 = ax*xs[i]+bx;
+			const float y1 = ay*ys[i]+by;
+			_srg_getLine(x0, y0, x1, y1, curve.param0, graph.ratio, curveData);
+			x0 = x1;
+			y0 = y1;
+		}
+		
+		curve.count = (GLsizei)(curveData.size()/2);
+		curve.id = _srg_setDataBuffer(&curveData[0], curve.count);
+	}
+	
+	void _srg_generatePoints(const _srg_Graph & graph, const std::vector<float> & xs, const std::vector<float> & ys, _srg_Curve & curve){
+		
+		if(xs.size() != ys.size() || xs.size() == 0){
+			return;
+		}
+		const float ax = (2.0f*(1.0f-graph.margin))/(graph.maxx - graph.minx);
+		const float bx = -1.0f + graph.margin - ax * graph.minx;
+		const float ay = (2.0f*(1.0f-graph.margin))/(graph.maxy - graph.miny);
+		const float by = -1.0f + graph.margin - ay * graph.miny;
+		
+		std::vector<float> curveData;
+		
+		for(unsigned int i = 0; i < xs.size(); ++i){
+			const float x0 = ax*xs[i]+bx;
+			const float y0 = ay*ys[i]+by;
+			_srg_getPoint(x0, y0, curve.param0, graph.ratio, curveData);
+		}
+		
+		curve.count = (GLsizei)(curveData.size()/2);
+		curve.id = _srg_setDataBuffer(&curveData[0], curve.count);
+	}
+	
+	void _srg_generateHist(const _srg_Graph & graph, const std::vector<float> & ys, _srg_Curve & curve){
+		if(ys.size() == 0){
+			return;
+		}
+		const float binSize = (graph.maxx - graph.minx)/(float)curve.param1;
+		std::vector<int> binCounts(curve.param1, 0);
+		for(unsigned int i = 0; i < ys.size(); ++i){
+			const int j = (unsigned int)floor((ys[i] - graph.minx)/binSize);
+			if(j < 0 || j >= binCounts.size()){
+				continue;
+			}
+			binCounts[j] += 1;
+		}
+		
+		std::vector<float> histData;
+		const float ax = (2.0f*(1.0f-graph.margin))/(graph.maxx - graph.minx);
+		const float bx = -1.0f + graph.margin - ax * graph.minx;
+		const float ay = (2.0f*(1.0f-graph.margin))/(graph.maxy - graph.miny);
+		const float by = -1.0f + graph.margin - ay * graph.miny;
+		const float binWidth = fmax(0.0f, 2.0f*(1.0 - graph.margin)/(float)curve.param1 - curve.param0);
+		for(unsigned int i = 0; i < curve.param1; ++i){
+			if(binCounts[i] == 0){
+				continue;
+			}
+			float x0 = ax*(graph.minx+(float)(i+0.5)*binSize) + bx; //@TODO: check corner cases.
+			float y0 = by;
+			float y1 = ay * (float)binCounts[i] + by;
+			_srg_getRectangle(x0, y0, x0, y1, binWidth, histData);
+		}
+		curve.count = (GLsizei)(histData.size()/2);
+		curve.id = _srg_setDataBuffer(&histData[0], curve.count);
 	}
 	
 	
