@@ -3,10 +3,10 @@
  Do this:
 	 #define SRG_IMPLEMENTATION_SR_GRAPH
 	 before you include this file in *one* C++ file to create the implementation.
- You will also need to include some OpenGL headers or headers including them before including this one.
+ You will also need to include some OpenGL headers before including this one.
 
 	 // i.e. it should look like this:
-	 #include <gl.h>
+	 #include <gl.h>/<gl3w.h>/<GL/glew.h>
 	 #include ...
 	 #include ...
 	 #define SRG_IMPLEMENTATION_SR_GRAPH
@@ -34,10 +34,7 @@
 
 // @TODO: extern/static
 
-#include <stdio.h>
-#include <math.h>
 #include <vector>
-#include <iostream>
 
 namespace sr_graph {
 	
@@ -71,7 +68,9 @@ namespace sr_graph {
 
 #ifdef SRG_IMPLEMENTATION_SR_GRAPH
 
-// @TODO: headers?
+#include <stdio.h>
+#include <math.h>
+#include <vector>
 
 namespace sr_graph {
 	
@@ -82,10 +81,15 @@ namespace sr_graph {
 		float g;
 		float b;
 	} _srg_Color;
-	
+
 	typedef struct {
 		GLuint id;
+		GLuint bid;
 		GLsizei count;
+	} _srg_Buffers;
+	
+	typedef struct {
+		_srg_Buffers buffer;
 		_srg_Color color;
 		float param0;
 		int param1;
@@ -101,12 +105,10 @@ namespace sr_graph {
 		float margin;
 		bool freed;
 		
-		GLuint idAxes;
-		GLsizei countAxes;
+		_srg_Buffers bufferAxes;
 		_srg_Color colorAxes;
 
-		GLuint idGrid;
-		GLsizei countGrid;
+		_srg_Buffers bufferGrid;
 		_srg_Color colorGrid;
 		
 		std::vector<_srg_Curve> curves;
@@ -115,7 +117,7 @@ namespace sr_graph {
 	} _srg_Graph;
 	
 	typedef struct {
-		GLuint idQuad;
+		_srg_Buffers bufferQuad;
 		GLuint pid;
 		GLuint ppid;
 		GLuint lpid;
@@ -130,6 +132,8 @@ namespace sr_graph {
 	enum _srg_Orientation {
 		VERTICAL, HORIZONTAL
 	};
+
+	
 	
 	
 	/// Internal variables.
@@ -142,7 +146,7 @@ namespace sr_graph {
 	/// Foreward declarations.
 	
 	void _srg_internalSetup();
-	GLuint _srg_setDataBuffer(const float * data, const unsigned int count);
+	_srg_Buffers _srg_setDataBuffer(const float * data, const unsigned int count);
 	void _srg_getLine(const float p0x, const float p0y, const float p1x, const float p1y, const float w, const float ratio, std::vector<float> & points);
 	void _srg_getRectangle(const float p0x, const float p0y, const float p1x, const float p1y, const float w, std::vector<float> & points);
 	void _srg_getPoint(const float p0x, const float p0y, const float radius, const float ratio, std::vector<float> & points);
@@ -161,7 +165,6 @@ namespace sr_graph {
 		}
 		// Create a graph with the given infos.
 		_srg_Graph graph;
-		graph.freed = false;
 		graph.color = {bg_r, bg_g, bg_b };
 		graph.minx = minx;
 		graph.maxx = maxx;
@@ -169,9 +172,19 @@ namespace sr_graph {
 		graph.maxy = maxy;
 		graph.ratio = fabs(ratio);
 		graph.margin = fmin(1.0f, fmax(0.0f, fabs(margins*2.0)));
+		graph.freed = false;
+		graph.bufferAxes = { 0, 0, 0 };
+		graph.colorAxes = graph.color;
+		graph.bufferGrid = { 0, 0, 0 };
+		graph.colorGrid = graph.color;
+		graph.curves.clear();
+		graph.points.clear();
+		graph.hists.clear();
+
 		// Store it.
 		_srg_graphs.push_back(graph);
-		return (int)_srg_graphs.size()-1;
+		return (int)_srg_graphs.size() - 1;
+
 	}
 	
 
@@ -186,8 +199,7 @@ namespace sr_graph {
 		_srg_generateAxis(VERTICAL, graph.margin, graph.ratio, width, graph.minx, graph.maxx, axisOnSide, graph.miny > graph.maxy, axisData);
 
 		graph.colorAxes = { axis_r, axis_g, axis_b };
-		graph.countAxes = (GLsizei)(axisData.size()/2);
-		graph.idAxes = _srg_setDataBuffer(&axisData[0], graph.countAxes);
+		graph.bufferAxes = _srg_setDataBuffer(&axisData[0], axisData.size() / 2);
 	}
 	
 	
@@ -250,8 +262,7 @@ namespace sr_graph {
 			}
 		}
 		graph.colorGrid = { lines_r, lines_g, lines_b };
-		graph.countGrid = (GLsizei)(gridData.size()/2);
-		graph.idGrid = _srg_setDataBuffer(&gridData[0], graph.countGrid);
+		graph.bufferGrid = _srg_setDataBuffer(&gridData[0], gridData.size() / 2);
 	}
 	
 	
@@ -280,6 +291,9 @@ namespace sr_graph {
 			return;
 		}
 		_srg_Curve & curve = graph.curves[curve_id];
+		
+		glDeleteVertexArrays(1, &(curve.buffer.id));
+		glDeleteBuffers(1, &(curve.buffer.bid));
 		_srg_generateCurve(graph, xs, ys, curve);
 	}
 	
@@ -309,6 +323,8 @@ namespace sr_graph {
 			return;
 		}
 		_srg_Curve & curve = graph.points[curve_id];
+		glDeleteVertexArrays(1, &(curve.buffer.id));
+		glDeleteBuffers(1, &(curve.buffer.bid));
 		_srg_generatePoints(graph, xs, ys, curve);
 	}
 	
@@ -338,6 +354,8 @@ namespace sr_graph {
 			return;
 		}
 		_srg_Curve & curve = graph.hists[curve_id];
+		glDeleteVertexArrays(1, &(curve.buffer.id));
+		glDeleteBuffers(1, &(curve.buffer.bid));
 		_srg_generateHist(graph, ys, curve);
 	}
 
@@ -381,45 +399,45 @@ namespace sr_graph {
 		// Draw quad to clear.
 		glUseProgram(_srg_state.pid);
 		glUniform3f(_srg_state.cid, graph.color.r, graph.color.g, graph.color.b);
-		glBindVertexArray(_srg_state.idQuad);
-		glDrawArrays(GL_TRIANGLES, 0, 6);
+		glBindVertexArray(_srg_state.bufferQuad.id);
+		glDrawArrays(GL_TRIANGLES, 0, _srg_state.bufferQuad.count);
 		glBindVertexArray(0);
 		
 		// Draw grid.
 		glUseProgram(_srg_state.lpid);
 		glUniform3f(_srg_state.lcid, graph.colorGrid.r, graph.colorGrid.g, graph.colorGrid.b);
-		glBindVertexArray(graph.idGrid);
-		glDrawArrays(GL_TRIANGLES, 0, graph.countGrid);
+		glBindVertexArray(graph.bufferGrid.id);
+		glDrawArrays(GL_TRIANGLES, 0, graph.bufferGrid.count);
 		glBindVertexArray(0);
 		
 		// Draw histograms.
 		glUseProgram(_srg_state.pid);
 		for(unsigned int i = 0; i < graph.hists.size(); ++i){
 			glUniform3f(_srg_state.cid, graph.hists[i].color.r, graph.hists[i].color.g, graph.hists[i].color.b);
-			glBindVertexArray(graph.hists[i].id);
-			glDrawArrays(GL_TRIANGLES, 0, graph.hists[i].count);
+			glBindVertexArray(graph.hists[i].buffer.id);
+			glDrawArrays(GL_TRIANGLES, 0, graph.hists[i].buffer.count);
 		}
 		
 		// Draw curves.
 		glUseProgram(_srg_state.lpid);
 		for(unsigned int i = 0; i < graph.curves.size(); ++i){
 			glUniform3f(_srg_state.lcid, graph.curves[i].color.r, graph.curves[i].color.g, graph.curves[i].color.b);
-			glBindVertexArray(graph.curves[i].id);
-			glDrawArrays(GL_TRIANGLES, 0, graph.curves[i].count);
+			glBindVertexArray(graph.curves[i].buffer.id);
+			glDrawArrays(GL_TRIANGLES, 0, graph.curves[i].buffer.count);
 		}
 		
 		// Draw axes.
 		glUseProgram(_srg_state.lpid);
 		glUniform3f(_srg_state.lcid, graph.colorAxes.r, graph.colorAxes.g, graph.colorAxes.b);
-		glBindVertexArray(graph.idAxes);
-		glDrawArrays(GL_TRIANGLES, 0, graph.countAxes);
+		glBindVertexArray(graph.bufferAxes.id);
+		glDrawArrays(GL_TRIANGLES, 0, graph.bufferAxes.count);
 		
 		// Draw points.
 		glUseProgram(_srg_state.ppid);
 		for(unsigned int i = 0; i < graph.points.size(); ++i){
 			glUniform3f(_srg_state.pcid, graph.points[i].color.r, graph.points[i].color.g, graph.points[i].color.b);
-			glBindVertexArray(graph.points[i].id);
-			glDrawArrays(GL_TRIANGLES, 0, graph.points[i].count);
+			glBindVertexArray(graph.points[i].buffer.id);
+			glDrawArrays(GL_TRIANGLES, 0, graph.points[i].buffer.count);
 		}
 		
 		// Restore OpenGL state.
@@ -455,16 +473,22 @@ namespace sr_graph {
 		}
 		_srg_Graph & graph = _srg_graphs[graph_id];
 		// Free vertex arrays.
-		glDeleteVertexArrays(1, &graph.idGrid);
-		glDeleteVertexArrays(1, &graph.idAxes);
+		glDeleteVertexArrays(1, &graph.bufferGrid.id);
+		glDeleteVertexArrays(1, &graph.bufferAxes.id);
+		glDeleteBuffers(1, &(graph.bufferGrid.bid));
+		glDeleteBuffers(1, &(graph.bufferAxes.bid));
+
 		for(unsigned int i = 0; i < graph.curves.size(); ++i){
-			glDeleteVertexArrays(1, &(graph.curves[i].id));
+			glDeleteVertexArrays(1, &(graph.curves[i].buffer.id));
+			glDeleteBuffers(1, &(graph.curves[i].buffer.bid));
 		}
 		for(unsigned int i = 0; i < graph.hists.size(); ++i){
-			glDeleteVertexArrays(1, &(graph.hists[i].id));
+			glDeleteVertexArrays(1, &(graph.hists[i].buffer.id));
+			glDeleteBuffers(1, &(graph.hists[i].buffer.bid));
 		}
 		for(unsigned int i = 0; i < graph.points.size(); ++i){
-			glDeleteVertexArrays(1, &(graph.points[i].id));
+			glDeleteVertexArrays(1, &(graph.points[i].buffer.id));
+			glDeleteBuffers(1, &(graph.points[i].buffer.bid));
 		}
 		graph.freed = true;
 	}
@@ -479,7 +503,8 @@ namespace sr_graph {
 		glDeleteProgram(_srg_state.pid);
 		glDeleteProgram(_srg_state.lpid);
 		glDeleteProgram(_srg_state.ppid);
-		glDeleteVertexArrays(1, &_srg_state.idQuad);
+		glDeleteVertexArrays(1, &_srg_state.bufferQuad.id);
+		glDeleteBuffers(1, &_srg_state.bufferQuad.bid);
 	}
 	
 	
@@ -487,54 +512,37 @@ namespace sr_graph {
 	
 	void _srg_getLine(const float p0x, const float p0y, const float p1x, const float p1y, const float w, const float ratio, std::vector<float> & points) {
 		// Compute normal vector.
-		float dirx = p1x - p0x;
-		float diry = p1y - p0y;
+		float dirx = p1x - p0x; float diry = p1y - p0y;
 		const float dirNorm = sqrtf(dirx*dirx+diry*diry);
 		if(dirNorm != 0.0f){
-			dirx /= dirNorm;
-			diry /= dirNorm;
+			dirx /= dirNorm; diry /= dirNorm;
 		}
-		const float norx = -diry;
-		const float nory = dirx;
-		const float shiftx = w;
-		const float shifty = ratio * w;
-		const float deltaNx = shiftx * norx;
-		const float deltaNy = shifty * nory;
-		const float deltaDx = shiftx * dirx;
-		const float deltaDy = shifty * diry;
 		
-		const float ax = p0x - deltaNx - deltaDx;
-		const float bx = p1x - deltaNx + deltaDx;
-		const float cx = p1x + deltaNx + deltaDx;
-		const float dx = p0x + deltaNx - deltaDx;
+		const float norx = -diry; const float nory = dirx;
+		const float sdx = w; const float sdy = ratio * w;
+		const float dNx = sdx * norx; const float dNy = sdy * nory;
+		float dDx = sdx * dirx; float dDy = sdy * diry;
+		dDx = 00; dDy = 0.0;// @DEBUG
 		
-		const float ay = p0y - deltaNy - deltaDy;
-		const float by = p1y - deltaNy + deltaDy;
-		const float cy = p1y + deltaNy + deltaDy;
-		const float dy = p0y + deltaNy - deltaDy;
-		
+		const float ax = p0x - dNx - dDx; const float ay = p0y - dNy - dDy;
+		const float bx = p1x - dNx + dDx; const float by = p1y - dNy + dDy;
+		const float cx = p1x + dNx + dDx; const float cy = p1y + dNy + dDy;
+		const float dx = p0x + dNx - dDx; const float dy = p0y + dNy - dDy;
 		points.push_back(ax); points.push_back(ay);
 		points.push_back(bx); points.push_back(by);
 		points.push_back(cx); points.push_back(cy);
 		points.push_back(ax); points.push_back(ay);
 		points.push_back(cx); points.push_back(cy);
 		points.push_back(dx); points.push_back(dy);
-		 
 	}
 	
 	
 	void _srg_getRectangle(const float p0x, const float p0y, const float p1x, const float p1y, const float w, std::vector<float> & points) {
-		
 		const float wx = w * 0.5;
-		const float ax = p0x - wx;
-		const float bx = p0x + wx;
-		const float cx = p1x + wx;
-		const float dx = p1x - wx;
-
-		const float ay = p0y;
-		const float by = p0y;
-		const float cy = p1y;
-		const float dy = p1y;
+		const float ax = p0x - wx; const float ay = p0y;
+		const float bx = p0x + wx; const float by = p0y;
+		const float cx = p1x + wx; const float cy = p1y;
+		const float dx = p1x - wx; const float dy = p1y;
 		points.push_back(ax); points.push_back(ay);
 		points.push_back(bx); points.push_back(by);
 		points.push_back(cx); points.push_back(cy);
@@ -545,19 +553,11 @@ namespace sr_graph {
 	
 	
 	void _srg_getPoint(const float p0x, const float p0y, const float radius, const float ratio, std::vector<float> & points) {
-		
-		const float wx = radius;
-		const float wy = radius * ratio;
-		const float ax = p0x - wx;
-		const float bx = p0x + wx;
-		const float cx = p0x + wx;
-		const float dx = p0x - wx;
-		
-		const float ay = p0y - wy;
-		const float by = p0y - wy;
-		const float cy = p0y + wy;
-		const float dy = p0y + wy;
-		
+		const float wx = radius;   const float wy = radius * ratio;
+		const float ax = p0x - wx; const float ay = p0y - wy;
+		const float bx = p0x + wx; const float by = p0y - wy;
+		const float cx = p0x + wx; const float cy = p0y + wy;
+		const float dx = p0x - wx; const float dy = p0y + wy;
 		points.push_back(ax); points.push_back(ay);
 		points.push_back(bx); points.push_back(by);
 		points.push_back(cx); points.push_back(cy);
@@ -597,10 +597,32 @@ namespace sr_graph {
 			_srg_getLine(hy, hx0, hy, hx1, width, ratio, axisData);
 			if(reverse){
 				_srg_getLine(hy, hx0, hy+ld, hx0+ld*ratio, width, ratio, axisData);
+
+				axisData[axisData.size() - 6] = hy;
+				axisData[axisData.size() - 12] = hy;
+				axisData[axisData.size() - 2] = hy;
+				axisData[axisData.size() - 1] = hx0 + sqrt(2.0f)*width;
+
 				_srg_getLine(hy, hx0, hy-ld, hx0+ld*ratio, width, ratio, axisData);
+				axisData[axisData.size() - 2] = hy;
+				axisData[axisData.size() - 12] = hy;
+				axisData[axisData.size() - 11] = hx0 + sqrt(2.0f)*width;
+				axisData[axisData.size() - 6] = hy;
+				axisData[axisData.size() - 5] = hx0 + sqrt(2.0f)*width;
+
 			} else {
 				_srg_getLine(hy, hx1+width, hy+ld, hx1-ld*ratio, width, ratio, axisData);
+				axisData[axisData.size() - 2] = hy;
+				axisData[axisData.size() - 12] = hy;
+				axisData[axisData.size() - 11] = hx1 - sqrt(2.0f)*width;
+				axisData[axisData.size() - 6] = hy;
+				axisData[axisData.size() - 5] = hx1 - sqrt(2.0f)*width;
+
 				_srg_getLine(hy, hx1+width, hy-ld, hx1-ld*ratio, width, ratio, axisData);
+				axisData[axisData.size() - 6] = hy;
+				axisData[axisData.size() - 12] = hy;
+				axisData[axisData.size() - 2] = hy;
+				axisData[axisData.size() - 1] = hx1-sqrt(2.0f)*width;
 			}
 		} else {
 			hx0 -= (reverse ? 1.5*ld : 0.0f);
@@ -609,10 +631,29 @@ namespace sr_graph {
 			// Add arrow.
 			if(reverse){
 				_srg_getLine(hx0, hy, hx0+ld, hy+ld*ratio, width, ratio, axisData);
+				axisData[axisData.size() - 5] = hy;
+				axisData[axisData.size() - 11] = hy;
+				axisData[axisData.size() - 1] = hy;
+				axisData[axisData.size() - 2] = hx0 + sqrt(2.0f)*width;
+				axisData[axisData.size() - 1] = hy;
+				axisData[axisData.size() - 11] = hy;
+				axisData[axisData.size() - 12] = hx0 + sqrt(2.0f)*width;
+				axisData[axisData.size() - 5] = hy;
+				axisData[axisData.size() - 6] = hx0 + sqrt(2.0f)*width;
 				_srg_getLine(hx0, hy, hx0+ld, hy-ld*ratio, width, ratio, axisData);
 			} else {
 				_srg_getLine(hx1+width, hy, hx1-ld, hy+ld*ratio, width, ratio, axisData);
-				_srg_getLine(hx1+width, hy, hx1-ld, hy-ld*ratio, width, ratio, axisData);
+				axisData[axisData.size() - 5] = hy;
+				axisData[axisData.size() - 11] = hy;
+				axisData[axisData.size() - 1] = hy;
+				axisData[axisData.size() - 2] = hx1 - sqrt(2.0f)*width;
+				
+				_srg_getLine(hx1 + width, hy, hx1 - ld, hy - ld*ratio, width, ratio, axisData);
+				axisData[axisData.size() - 1] = hy;
+				axisData[axisData.size() - 11] = hy;
+				axisData[axisData.size() - 12] = hx1 - sqrt(2.0f)*width;
+				axisData[axisData.size() - 5] = hy;
+				axisData[axisData.size() - 6] = hx1 - sqrt(2.0f)*width;
 			}
 		}
 		
@@ -634,12 +675,12 @@ namespace sr_graph {
 			const float x1 = ax*xs[i]+bx;
 			const float y1 = ay*ys[i]+by;
 			_srg_getLine(x0, y0, x1, y1, curve.param0, graph.ratio, curveData);
+			// @TODO: handle lines intersections.
 			x0 = x1;
 			y0 = y1;
 		}
 		
-		curve.count = (GLsizei)(curveData.size()/2);
-		curve.id = _srg_setDataBuffer(&curveData[0], curve.count);
+		curve.buffer = _srg_setDataBuffer(&curveData[0], curveData.size() / 2);
 	}
 	
 	void _srg_generatePoints(const _srg_Graph & graph, const std::vector<float> & xs, const std::vector<float> & ys, _srg_Curve & curve){
@@ -660,8 +701,7 @@ namespace sr_graph {
 			_srg_getPoint(x0, y0, curve.param0, graph.ratio, curveData);
 		}
 		
-		curve.count = (GLsizei)(curveData.size()/2);
-		curve.id = _srg_setDataBuffer(&curveData[0], curve.count);
+		curve.buffer = _srg_setDataBuffer(&curveData[0], curveData.size() / 2);
 	}
 	
 	void _srg_generateHist(const _srg_Graph & graph, const std::vector<float> & ys, _srg_Curve & curve){
@@ -693,8 +733,7 @@ namespace sr_graph {
 			float y1 = ay * (float)binCounts[i] + by;
 			_srg_getRectangle(x0, y0, x0, y1, binWidth, histData);
 		}
-		curve.count = (GLsizei)(histData.size()/2);
-		curve.id = _srg_setDataBuffer(&histData[0], curve.count);
+		curve.buffer = _srg_setDataBuffer(&histData[0], histData.size() / 2);
 	}
 	
 	
@@ -705,14 +744,14 @@ namespace sr_graph {
 	
 	static const char * _srg_fstr = "#version 330\nin vec2 coords;\nuniform vec3 color;\nout vec4 frag_Color;\nvoid main(){\nfrag_Color.rgb = color;\nfrag_Color.a = 1.0;\n}\n";
 	
-	static const char * _srg_lfstr = "#version 330\nin vec2 coords;\nuniform vec3 color;\nout vec4 frag_Color;\nvoid main(){\nfrag_Color.rgb = color;\nfrag_Color.a = 1.0-smoothstep(0.7, 1.0, abs(coords.y));\n}\n";
+	static const char * _srg_lfstr = "#version 330\nin vec2 coords;\nuniform vec3 color;\nout vec4 frag_Color;\nvoid main(){\nfrag_Color.rgb = color;\nfrag_Color.a = 1.0-smoothstep(0.5, 1.0, abs(coords.y));\n}\n";
 
 	static const char * _srg_pfstr = "#version 330\nin vec2 coords;\nuniform vec3 color;\nout vec4 fragColor;\nvoid main(){\nfragColor = vec4(color, 1.0-smoothstep(0.9, 1.0, length(coords)));\n}\n";
 	
 	
 	/// OpenGL helpers.
 	
-	GLuint _srg_setDataBuffer(const float * data, const unsigned int count){
+	_srg_Buffers _srg_setDataBuffer(const float * data, const unsigned int count){
 		// Create a vertex array and a vertex buffer.
 		GLuint vaId;
 		glGenVertexArrays(1, &vaId);
@@ -727,7 +766,7 @@ namespace sr_graph {
 		glBindBuffer(GL_ARRAY_BUFFER, bufferPos);
 		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
 		glBindVertexArray(0);
-		return vaId;
+		return { vaId, bufferPos, (GLsizei)count };
 	}
 	
 	
@@ -791,7 +830,7 @@ namespace sr_graph {
 		glUseProgram(0);
 		// Quad data for full viewport clearing.
 		const float quadData[12] = { -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f };
-		_srg_state.idQuad = _srg_setDataBuffer(quadData, 6);
+		_srg_state.bufferQuad = _srg_setDataBuffer(quadData, 6);
 		 // @TODO: cleanly handle errors.
 		_srg_isInit = true;
 	}
