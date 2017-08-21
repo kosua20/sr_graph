@@ -1,8 +1,5 @@
 #ifndef Renderer_h
 #define Renderer_h
-#include <gl3w/gl3w.h>
-#include <GLFW/glfw3.h>
-#include <memory>
 
 class Renderer {
 
