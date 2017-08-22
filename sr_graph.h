@@ -32,35 +32,39 @@
 #ifndef SRG_INCLUDE_SR_GRAPH_H
 #define SRG_INCLUDE_SR_GRAPH_H
 
-// @TODO: extern/static
-
 #include <vector>
+
+#ifdef SR_GRAPH_STATIC
+#define SRG_EXTERN static
+#else
+#define SRG_EXTERN extern
+#endif
 
 namespace sr_graph {
 	
-	extern int setup(const float minx, const float maxx, const float miny, const float maxy, const float ratio, const float margins, const float bg_r, const float bg_g, const float bg_b);
+	SRG_EXTERN int setup(const float minx, const float maxx, const float miny, const float maxy, const float ratio, const float margins, const float bg_r, const float bg_g, const float bg_b);
 	
-	extern void add_axes(const int graph_id, const float width, const float axis_r, const float axis_g, const float axis_b, const bool axisOnSide);
+	SRG_EXTERN void add_axes(const int graph_id, const float width, const float axis_r, const float axis_g, const float axis_b, const bool axisOnSide);
 	
-	extern void add_grid(const int graph_id, const float stepx, const float stepy, const float width, const float lines_r, const float lines_g, const float lines_b, const bool fromZero);
+	SRG_EXTERN void add_grid(const int graph_id, const float stepx, const float stepy, const float width, const float lines_r, const float lines_g, const float lines_b, const bool fromZero);
 	
-	extern int add_curve(const int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float width, const float color_r, const float color_g, const float color_b);
+	SRG_EXTERN int add_curve(const int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float width, const float color_r, const float color_g, const float color_b);
 	
-	extern void update_curve(const int graph_id, const int curve_id, const std::vector<float> & xs, const std::vector<float> & ys);
+	SRG_EXTERN void update_curve(const int graph_id, const int curve_id, const std::vector<float> & xs, const std::vector<float> & ys);
 	
-	extern int add_hist(const int graph_id, const unsigned int bins, const std::vector<float> & ys, const float spacing, const float color_r, const float color_g, const float color_b);
+	SRG_EXTERN int add_hist(const int graph_id, const unsigned int bins, const std::vector<float> & ys, const float spacing, const float color_r, const float color_g, const float color_b);
 	
-	extern void update_hist(const int graph_id, const int hist_id, const std::vector<float> & ys);
+	SRG_EXTERN void update_hist(const int graph_id, const int hist_id, const std::vector<float> & ys);
 	
-	extern int add_points(const int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float size, const float color_r, const float color_g, const float color_b);
+	SRG_EXTERN int add_points(const int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float size, const float color_r, const float color_g, const float color_b);
 	
-	extern void update_points(const int graph_id, const int points_id, const std::vector<float> & xs, const std::vector<float> & ys);
+	SRG_EXTERN void update_points(const int graph_id, const int points_id, const std::vector<float> & xs, const std::vector<float> & ys);
 	
-	extern void draw(const int graph_id, const float ratio = 0.0f);
+	SRG_EXTERN void draw(const int graph_id, const float ratio = 0.0f);
 	
-	extern void free(const int graph_id);
+	SRG_EXTERN void free(const int graph_id);
 	
-	extern void free();
+	SRG_EXTERN void free();
 	
 }
 
@@ -71,7 +75,7 @@ namespace sr_graph {
 #include <stdio.h>
 #include <math.h>
 #include <vector>
-
+#include <iostream>
 namespace sr_graph {
 	
 	/// Internal structs.
@@ -92,7 +96,7 @@ namespace sr_graph {
 		_srg_Buffers buffer;
 		_srg_Color color;
 		float param0;
-		int param1;
+		unsigned int param1;
 	} _srg_Curve;
 	
 	typedef struct {
@@ -134,8 +138,6 @@ namespace sr_graph {
 	};
 
 	
-	
-	
 	/// Internal variables.
 	
 	static bool _srg_isInit = false;
@@ -145,20 +147,20 @@ namespace sr_graph {
 	
 	/// Foreward declarations.
 	
-	void _srg_internalSetup();
-	_srg_Buffers _srg_setDataBuffer(const float * data, const unsigned int count);
-	void _srg_getLine(const float p0x, const float p0y, const float p1x, const float p1y, const float w, const float ratio, std::vector<float> & points);
-	void _srg_getRectangle(const float p0x, const float p0y, const float p1x, const float p1y, const float w, std::vector<float> & points);
-	void _srg_getPoint(const float p0x, const float p0y, const float radius, const float ratio, std::vector<float> & points);
-	void _srg_generateAxis(const _srg_Orientation orientation, const float margin, const float ratio, const float width, const float mini, const float maxi, const bool axisOnSide, const bool reverse, std::vector<float> & axisData);
-	void _srg_generateCurve(const _srg_Graph & graph, const std::vector<float> & xs, const std::vector<float> & ys, _srg_Curve & curve);
-	void _srg_generatePoints(const _srg_Graph & graph, const std::vector<float> & xs, const std::vector<float> & ys, _srg_Curve & curve);
-	void _srg_generateHist(const _srg_Graph & graph, const std::vector<float> & ys, _srg_Curve & curve);
+	static void _srg_internalSetup();
+	static _srg_Buffers _srg_setDataBuffer(const float * data, const unsigned int count);
+	static void _srg_getLine(const float p0x, const float p0y, const float p1x, const float p1y, const float w, const float ratio, std::vector<float> & points);
+	static void _srg_getRectangle(const float p0x, const float p0y, const float p1x, const float p1y, const float w, std::vector<float> & points);
+	static void _srg_getPoint(const float p0x, const float p0y, const float radius, const float ratio, std::vector<float> & points);
+	static void _srg_generateAxis(const _srg_Orientation orientation, const float margin, const float ratio, const float width, const float mini, const float maxi, const bool axisOnSide, const bool reverse, std::vector<float> & axisData);
+	static void _srg_generateCurve(const _srg_Graph & graph, const std::vector<float> & xs, const std::vector<float> & ys, _srg_Curve & curve);
+	static void _srg_generatePoints(const _srg_Graph & graph, const std::vector<float> & xs, const std::vector<float> & ys, _srg_Curve & curve);
+	static void _srg_generateHist(const _srg_Graph & graph, const std::vector<float> & ys, _srg_Curve & curve);
 	
 	
 	/// Exposed functions.
 	
-	int setup(const float minx, const float maxx, const float miny, const float maxy, const float ratio, const float margins, const float bg_r, const float bg_g, const float bg_b){
+	SRG_EXTERN int setup(const float minx, const float maxx, const float miny, const float maxy, const float ratio, const float margins, const float bg_r, const float bg_g, const float bg_b){
 		// If we haven't initialized our GL programs, do it.
 		if (!_srg_isInit) {
 			_srg_internalSetup();
@@ -171,7 +173,7 @@ namespace sr_graph {
 		graph.miny = miny;
 		graph.maxy = maxy;
 		graph.ratio = fabs(ratio);
-		graph.margin = fmin(1.0f, fmax(0.0f, fabs(margins*2.0)));
+		graph.margin = fmin(1.0f, fmax(0.0f, fabs(margins*2.0f)));
 		graph.freed = false;
 		graph.bufferAxes = { 0, 0, 0 };
 		graph.colorAxes = graph.color;
@@ -188,7 +190,7 @@ namespace sr_graph {
 	}
 	
 
-	void add_axes(const int graph_id, const float width, const float axis_r, const float axis_g, const float axis_b, const bool axisOnSide){
+	SRG_EXTERN void add_axes(const int graph_id, const float width, const float axis_r, const float axis_g, const float axis_b, const bool axisOnSide){
 		if(graph_id < 0 || graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
 		}
@@ -199,11 +201,11 @@ namespace sr_graph {
 		_srg_generateAxis(VERTICAL, graph.margin, graph.ratio, width, graph.minx, graph.maxx, axisOnSide, graph.miny > graph.maxy, axisData);
 
 		graph.colorAxes = { axis_r, axis_g, axis_b };
-		graph.bufferAxes = _srg_setDataBuffer(&axisData[0], axisData.size() / 2);
+		graph.bufferAxes = _srg_setDataBuffer(&axisData[0], (unsigned int)axisData.size() / 2);
 	}
 	
 	
-	void add_grid(const int graph_id, const float stepx, const float stepy, const float width, const float lines_r, const float lines_g, const float lines_b, const bool fromZero) {
+	SRG_EXTERN void add_grid(const int graph_id, const float stepx, const float stepy, const float width, const float lines_r, const float lines_g, const float lines_b, const bool fromZero) {
 		if(graph_id < 0 || graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
 		}
@@ -225,14 +227,14 @@ namespace sr_graph {
 				while(xZero > 1.0f - graph.margin){
 					xZero -= shiftH;
 				}
-				for(float xi = xZero; xi >= -1.0f+graph.margin; xi -= shiftH){
+				for(float xi = xZero; xi >= -1.0f+graph.margin-0.0001f; xi -= shiftH){
 					_srg_getLine(xi, -1.0f+graph.margin, xi, 1.0f-graph.margin, width, graph.ratio, gridData);
 				}
-				for(float xi = xZero+shiftH; xi <= 1.0f-graph.margin; xi += shiftH){
+				for(float xi = xZero+shiftH; xi <= 1.0f-graph.margin+0.0001f; xi += shiftH){
 					_srg_getLine(xi, -1.0f+graph.margin, xi, 1.0f-graph.margin, width, graph.ratio, gridData);
 				}
 			} else {
-				for(float x = -1.0f+graph.margin; x < 1.0f-graph.margin; x += shiftH){
+				for(float x = -1.0f+graph.margin; x <= 1.0f-graph.margin; x += shiftH){
 					_srg_getLine(x, -1.0f+graph.margin, x, 1.0f-graph.margin, width, graph.ratio, gridData);
 				}
 				_srg_getLine(1.0f - graph.margin, -1.0f+graph.margin, 1.0f - graph.margin, 1.0f-graph.margin, width, graph.ratio, gridData);
@@ -248,10 +250,10 @@ namespace sr_graph {
 				while(yZero > 1.0f - graph.margin){
 					yZero -= shiftV;
 				}
-				for(float yi = yZero; yi >= -1.0f+graph.margin; yi -= shiftV){
+				for(float yi = yZero; yi >= -1.0f+graph.margin - 0.0001f; yi -= shiftV){
 					_srg_getLine(-1.0f+graph.margin, yi, 1.0f-graph.margin, yi, width, graph.ratio, gridData);
 				}
-				for(float yi = yZero+shiftV; yi <= 1.0f-graph.margin; yi += shiftV){
+				for(float yi = yZero+shiftV; yi <= 1.0f-graph.margin + 0.0001f; yi += shiftV){
 					_srg_getLine(-1.0f+graph.margin, yi, 1.0f-graph.margin, yi, width, graph.ratio, gridData);
 				}
 			} else {
@@ -262,11 +264,11 @@ namespace sr_graph {
 			}
 		}
 		graph.colorGrid = { lines_r, lines_g, lines_b };
-		graph.bufferGrid = _srg_setDataBuffer(&gridData[0], gridData.size() / 2);
+		graph.bufferGrid = _srg_setDataBuffer(&gridData[0], (unsigned int)gridData.size() / 2);
 	}
 	
 	
-	int add_curve(const int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float width, const float color_r, const float color_g, const float color_b){
+	SRG_EXTERN int add_curve(const int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float width, const float color_r, const float color_g, const float color_b){
 		
 		if(graph_id < 0 || graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return -1;
@@ -281,7 +283,7 @@ namespace sr_graph {
 	}
 	
 	
-	void update_curve(const int graph_id, const int curve_id, const std::vector<float> & xs, const std::vector<float> & ys) {
+	SRG_EXTERN void update_curve(const int graph_id, const int curve_id, const std::vector<float> & xs, const std::vector<float> & ys) {
 		
 		if(graph_id < 0 || graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
@@ -298,7 +300,7 @@ namespace sr_graph {
 	}
 	
 	
-	int add_points(const int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float size, const float color_r, const float color_g, const float color_b) {
+	SRG_EXTERN int add_points(const int graph_id, const std::vector<float> & xs, const std::vector<float> & ys, const float size, const float color_r, const float color_g, const float color_b) {
 		
 		if(graph_id < 0 || graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return -1;
@@ -313,7 +315,7 @@ namespace sr_graph {
 	}
 	
 	
-	void update_points(const int graph_id, const int curve_id, const std::vector<float> & xs, const std::vector<float> & ys) {
+	SRG_EXTERN void update_points(const int graph_id, const int curve_id, const std::vector<float> & xs, const std::vector<float> & ys) {
 		
 		if(graph_id < 0 || graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
@@ -329,7 +331,7 @@ namespace sr_graph {
 	}
 	
 	
-	int add_hist(const int graph_id, const unsigned int bins, const std::vector<float> & ys, const float spacing, const float color_r, const float color_g, const float color_b) {
+	SRG_EXTERN int add_hist(const int graph_id, const unsigned int bins, const std::vector<float> & ys, const float spacing, const float color_r, const float color_g, const float color_b) {
 		
 		if(graph_id < 0 || graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return -1;
@@ -344,7 +346,7 @@ namespace sr_graph {
 		return (int)graph.hists.size()-1;
 	}
 	
-	void update_hist(const int graph_id, const int curve_id, const std::vector<float> & ys) {
+	SRG_EXTERN void update_hist(const int graph_id, const int curve_id, const std::vector<float> & ys) {
 		
 		if(graph_id < 0 || graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
@@ -360,7 +362,7 @@ namespace sr_graph {
 	}
 
 	
-	void draw(const int graph_id, float ratio) {
+	SRG_EXTERN void draw(const int graph_id, float ratio) {
 		
 		if(graph_id < 0 || graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
@@ -387,7 +389,7 @@ namespace sr_graph {
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL) ;
 		
-		
+		// Set ratios.
 		const _srg_Graph & graph = _srg_graphs[graph_id];
 		const float finalRatio = (ratio == 0.0) ? 1.0f : ratio/graph.ratio;
 		glUseProgram(_srg_state.pid);
@@ -396,6 +398,7 @@ namespace sr_graph {
 		glUniform1f(_srg_state.lrid, finalRatio);
 		glUseProgram(_srg_state.ppid);
 		glUniform1f(_srg_state.prid, finalRatio);
+
 		// Draw quad to clear.
 		glUseProgram(_srg_state.pid);
 		glUniform3f(_srg_state.cid, graph.color.r, graph.color.g, graph.color.b);
@@ -467,7 +470,7 @@ namespace sr_graph {
 	}
 
 	
-	void free(const int graph_id) {
+	SRG_EXTERN void free(const int graph_id) {
 		if(graph_id < 0 || graph_id >= _srg_graphs.size() || _srg_graphs[graph_id].freed){
 			return;
 		}
@@ -493,7 +496,7 @@ namespace sr_graph {
 		graph.freed = true;
 	}
 	
-	void free(){
+	SRG_EXTERN void free(){
 		// Free each graph and then clear the map.
 		for(unsigned int i = 0; i < _srg_graphs.size(); ++i){
 			free(i);
@@ -510,7 +513,7 @@ namespace sr_graph {
 	
 	/// Internal functions.
 	
-	void _srg_getLine(const float p0x, const float p0y, const float p1x, const float p1y, const float w, const float ratio, std::vector<float> & points) {
+	static void _srg_getLine(const float p0x, const float p0y, const float p1x, const float p1y, const float w, const float ratio, std::vector<float> & points) {
 		// Compute normal vector.
 		float dirx = p1x - p0x; float diry = p1y - p0y;
 		const float dirNorm = sqrtf(dirx*dirx+diry*diry);
@@ -521,13 +524,11 @@ namespace sr_graph {
 		const float norx = -diry; const float nory = dirx;
 		const float sdx = w; const float sdy = ratio * w;
 		const float dNx = sdx * norx; const float dNy = sdy * nory;
-		float dDx = sdx * dirx; float dDy = sdy * diry;
-		dDx = 00; dDy = 0.0;// @DEBUG
 		
-		const float ax = p0x - dNx - dDx; const float ay = p0y - dNy - dDy;
-		const float bx = p1x - dNx + dDx; const float by = p1y - dNy + dDy;
-		const float cx = p1x + dNx + dDx; const float cy = p1y + dNy + dDy;
-		const float dx = p0x + dNx - dDx; const float dy = p0y + dNy - dDy;
+		const float ax = p0x - dNx; const float ay = p0y - dNy;
+		const float bx = p1x - dNx; const float by = p1y - dNy;
+		const float cx = p1x + dNx; const float cy = p1y + dNy;
+		const float dx = p0x + dNx; const float dy = p0y + dNy;
 		points.push_back(ax); points.push_back(ay);
 		points.push_back(bx); points.push_back(by);
 		points.push_back(cx); points.push_back(cy);
@@ -537,8 +538,8 @@ namespace sr_graph {
 	}
 	
 	
-	void _srg_getRectangle(const float p0x, const float p0y, const float p1x, const float p1y, const float w, std::vector<float> & points) {
-		const float wx = w * 0.5;
+	static void _srg_getRectangle(const float p0x, const float p0y, const float p1x, const float p1y, const float w, std::vector<float> & points) {
+		const float wx = w * 0.5f;
 		const float ax = p0x - wx; const float ay = p0y;
 		const float bx = p0x + wx; const float by = p0y;
 		const float cx = p1x + wx; const float cy = p1y;
@@ -552,7 +553,7 @@ namespace sr_graph {
 	}
 	
 	
-	void _srg_getPoint(const float p0x, const float p0y, const float radius, const float ratio, std::vector<float> & points) {
+	static void _srg_getPoint(const float p0x, const float p0y, const float radius, const float ratio, std::vector<float> & points) {
 		const float wx = radius;   const float wy = radius * ratio;
 		const float ax = p0x - wx; const float ay = p0y - wy;
 		const float bx = p0x + wx; const float by = p0y - wy;
@@ -567,9 +568,7 @@ namespace sr_graph {
 	}
 	
 	
-	void _srg_generateAxis(const _srg_Orientation orientation, const float margin, const float ratio, const float width, const float mini, const float maxi, const bool axisOnSide, const bool reverse, std::vector<float> & axisData){
-		float hx0 = -1.0f+margin;
-		float hx1 = 1.0f-margin;
+	static void _srg_generateAxis(const _srg_Orientation orientation, const float margin, const float ratio, const float width, const float mini, const float maxi, const bool axisOnSide, const bool reverse, std::vector<float> & axisData){
 		float hy;
 		// Three positions.
 		if(axisOnSide || 0.0 <= fmin(mini, maxi)){
@@ -590,76 +589,54 @@ namespace sr_graph {
 		}
 		
 		const float ld = fmin(0.03f, 0.3f*margin);
+		const float rv = orientation == VERTICAL ? ratio : 1.0f;
+		const float rh = orientation == HORIZONTAL ? ratio : 1.0f;
+		const int sh = orientation == VERTICAL ? 0 : 1;
+		const float hx0 = -1.0f + margin - (reverse ? 1.5f*ld*rv : 0.75f*width*rv);
+		const float hx1 = 1.0f - margin + (reverse ? 0.75f*width*rv : 1.5f*ld*rv);
+		const float ord = reverse ? hx0 : hx1;
+		const float sn = reverse ? -1.0f : 1.0f;
+		const float s0 = sn * (1.0f + sqrtf(2.0)*rv)*width;
+		const float s1 = sn * ld * rv;
+		const float s2 = (-sh*2.0f+1.0f) * sn * (ld - sqrt(2.0f)*width)*rh;
+		const float s3 = (-sh*2.0f+1.0f) * sn * (ld + sqrt(2.0f)*width)*rh;
 		
 		if (orientation == VERTICAL) {
-			hx0 -= (reverse ? 1.5*ld*ratio : 0.0f);
-			hx1 += (reverse ? 0.0f : 1.5*ld*ratio);
 			_srg_getLine(hy, hx0, hy, hx1, width, ratio, axisData);
-			if(reverse){
-				_srg_getLine(hy, hx0, hy+ld, hx0+ld*ratio, width, ratio, axisData);
-
-				axisData[axisData.size() - 6] = hy;
-				axisData[axisData.size() - 12] = hy;
-				axisData[axisData.size() - 2] = hy;
-				axisData[axisData.size() - 1] = hx0 + sqrt(2.0f)*width;
-
-				_srg_getLine(hy, hx0, hy-ld, hx0+ld*ratio, width, ratio, axisData);
-				axisData[axisData.size() - 2] = hy;
-				axisData[axisData.size() - 12] = hy;
-				axisData[axisData.size() - 11] = hx0 + sqrt(2.0f)*width;
-				axisData[axisData.size() - 6] = hy;
-				axisData[axisData.size() - 5] = hx0 + sqrt(2.0f)*width;
-
-			} else {
-				_srg_getLine(hy, hx1+width, hy+ld, hx1-ld*ratio, width, ratio, axisData);
-				axisData[axisData.size() - 2] = hy;
-				axisData[axisData.size() - 12] = hy;
-				axisData[axisData.size() - 11] = hx1 - sqrt(2.0f)*width;
-				axisData[axisData.size() - 6] = hy;
-				axisData[axisData.size() - 5] = hx1 - sqrt(2.0f)*width;
-
-				_srg_getLine(hy, hx1+width, hy-ld, hx1-ld*ratio, width, ratio, axisData);
-				axisData[axisData.size() - 6] = hy;
-				axisData[axisData.size() - 12] = hy;
-				axisData[axisData.size() - 2] = hy;
-				axisData[axisData.size() - 1] = hx1-sqrt(2.0f)*width;
-			}
+			_srg_getLine(hy, ord + sn*width, hy + sn*ld, ord - sn*ld*ratio, width, ratio, axisData);
 		} else {
-			hx0 -= (reverse ? 1.5*ld : 0.0f);
-			hx1 += (reverse ? 0.0f : 1.5*ld);
 			_srg_getLine(hx0, hy, hx1, hy, width, ratio, axisData);
-			// Add arrow.
-			if(reverse){
-				_srg_getLine(hx0, hy, hx0+ld, hy+ld*ratio, width, ratio, axisData);
-				axisData[axisData.size() - 5] = hy;
-				axisData[axisData.size() - 11] = hy;
-				axisData[axisData.size() - 1] = hy;
-				axisData[axisData.size() - 2] = hx0 + sqrt(2.0f)*width;
-				axisData[axisData.size() - 1] = hy;
-				axisData[axisData.size() - 11] = hy;
-				axisData[axisData.size() - 12] = hx0 + sqrt(2.0f)*width;
-				axisData[axisData.size() - 5] = hy;
-				axisData[axisData.size() - 6] = hx0 + sqrt(2.0f)*width;
-				_srg_getLine(hx0, hy, hx0+ld, hy-ld*ratio, width, ratio, axisData);
-			} else {
-				_srg_getLine(hx1+width, hy, hx1-ld, hy+ld*ratio, width, ratio, axisData);
-				axisData[axisData.size() - 5] = hy;
-				axisData[axisData.size() - 11] = hy;
-				axisData[axisData.size() - 1] = hy;
-				axisData[axisData.size() - 2] = hx1 - sqrt(2.0f)*width;
-				
-				_srg_getLine(hx1 + width, hy, hx1 - ld, hy - ld*ratio, width, ratio, axisData);
-				axisData[axisData.size() - 1] = hy;
-				axisData[axisData.size() - 11] = hy;
-				axisData[axisData.size() - 12] = hx1 - sqrt(2.0f)*width;
-				axisData[axisData.size() - 5] = hy;
-				axisData[axisData.size() - 6] = hx1 - sqrt(2.0f)*width;
-			}
+			_srg_getLine(ord + sn * width, hy, ord - sn * ld, hy - sn * ld*ratio, width, ratio, axisData);
 		}
+		// Correct vertices positions to join the point of the arrow and the tail angles.
+		axisData[axisData.size() - 2 + sh] = hy;
+		axisData[axisData.size() - 1 - sh] = ord + s0;
+		axisData[axisData.size() - 10 + sh] = hy + s2;
+		axisData[axisData.size() - 8 + sh] = hy + s3;
+		axisData[axisData.size() - 4 + sh] = hy + s3;
+		axisData[axisData.size() - 9 - sh] = ord - s1;
+		axisData[axisData.size() - 7 - sh] = ord - s1;
+		axisData[axisData.size() - 3 - sh] = ord - s1;
 		
+		if (orientation == VERTICAL) {
+			_srg_getLine(hy, ord + sn * width, hy - sn * ld, ord - sn * ld * ratio, width, ratio, axisData);
+		} else {
+			_srg_getLine(ord + sn*width, hy, ord - sn*ld, hy + sn * ld*ratio, width, ratio, axisData);
+		}
+		// Correct vertices positions to join the point of the arrow and the tail angles.
+		axisData[axisData.size() - 6 + sh] = hy;
+		axisData[axisData.size() - 12 + sh] = hy;
+		axisData[axisData.size() - 5 - sh] = ord + s0;
+		axisData[axisData.size() - 11 - sh] = ord + s0;
+		axisData[axisData.size() - 10 + sh] = hy - s3;
+		axisData[axisData.size() - 8 + sh] = hy - s2;
+		axisData[axisData.size() - 4 + sh] = hy - s2;
+		axisData[axisData.size() - 9 - sh] = ord - s1;
+		axisData[axisData.size() - 7 - sh] = ord - s1;
+		axisData[axisData.size() - 3 - sh] = ord - s1;
 	}
 	
-	void _srg_generateCurve(const _srg_Graph & graph, const std::vector<float> & xs, const std::vector<float> & ys, _srg_Curve & curve) {
+	static void _srg_generateCurve(const _srg_Graph & graph, const std::vector<float> & xs, const std::vector<float> & ys, _srg_Curve & curve) {
 		if(xs.size() != ys.size() || xs.size() == 0){
 			return;
 		}
@@ -680,10 +657,10 @@ namespace sr_graph {
 			y0 = y1;
 		}
 		
-		curve.buffer = _srg_setDataBuffer(&curveData[0], curveData.size() / 2);
+		curve.buffer = _srg_setDataBuffer(&curveData[0], (unsigned int)curveData.size() / 2);
 	}
 	
-	void _srg_generatePoints(const _srg_Graph & graph, const std::vector<float> & xs, const std::vector<float> & ys, _srg_Curve & curve){
+	static void _srg_generatePoints(const _srg_Graph & graph, const std::vector<float> & xs, const std::vector<float> & ys, _srg_Curve & curve){
 		
 		if(xs.size() != ys.size() || xs.size() == 0){
 			return;
@@ -701,10 +678,10 @@ namespace sr_graph {
 			_srg_getPoint(x0, y0, curve.param0, graph.ratio, curveData);
 		}
 		
-		curve.buffer = _srg_setDataBuffer(&curveData[0], curveData.size() / 2);
+		curve.buffer = _srg_setDataBuffer(&curveData[0], (unsigned int)curveData.size() / 2);
 	}
 	
-	void _srg_generateHist(const _srg_Graph & graph, const std::vector<float> & ys, _srg_Curve & curve){
+	static void _srg_generateHist(const _srg_Graph & graph, const std::vector<float> & ys, _srg_Curve & curve){
 		if(ys.size() == 0){
 			return;
 		}
@@ -723,7 +700,7 @@ namespace sr_graph {
 		const float bx = -1.0f + graph.margin - ax * graph.minx;
 		const float ay = (2.0f*(1.0f-graph.margin))/(graph.maxy - graph.miny);
 		const float by = -1.0f + graph.margin - ay * graph.miny;
-		const float binWidth = fmax(0.0f, 2.0f*(1.0 - graph.margin)/(float)curve.param1 - curve.param0);
+		const float binWidth = fmax(0.0f, 2.0f*(1.0f - graph.margin)/(float)curve.param1 - curve.param0);
 		for(unsigned int i = 0; i < curve.param1; ++i){
 			if(binCounts[i] == 0){
 				continue;
@@ -733,7 +710,7 @@ namespace sr_graph {
 			float y1 = ay * (float)binCounts[i] + by;
 			_srg_getRectangle(x0, y0, x0, y1, binWidth, histData);
 		}
-		curve.buffer = _srg_setDataBuffer(&histData[0], histData.size() / 2);
+		curve.buffer = _srg_setDataBuffer(&histData[0], (unsigned int)histData.size() / 2);
 	}
 	
 	
@@ -751,7 +728,7 @@ namespace sr_graph {
 	
 	/// OpenGL helpers.
 	
-	_srg_Buffers _srg_setDataBuffer(const float * data, const unsigned int count){
+	static _srg_Buffers _srg_setDataBuffer(const float * data, const unsigned int count){
 		// Create a vertex array and a vertex buffer.
 		GLuint vaId;
 		glGenVertexArrays(1, &vaId);
@@ -770,7 +747,7 @@ namespace sr_graph {
 	}
 	
 	
-	GLuint _srg_loadShader(const char * prog, GLuint type) {
+	static GLuint _srg_loadShader(const char * prog, GLuint type) {
 		// Create shader, setup string as source and compile it.
 		GLuint id = glCreateShader(type);
 		glShaderSource(id, 1, &prog, (const GLint*)NULL);
@@ -787,7 +764,7 @@ namespace sr_graph {
 	}
 	
 	
-	GLuint _srg_createGLProgram(const char* vertexString, const char * fragmentString) {
+	static GLuint _srg_createGLProgram(const char* vertexString, const char * fragmentString) {
 		GLuint id = glCreateProgram();
 		// Load and attach shaders, then link them w/ the program.
 		GLuint vp = _srg_loadShader(vertexString, GL_VERTEX_SHADER);
@@ -811,7 +788,7 @@ namespace sr_graph {
 	}
 	
 	
-	void _srg_internalSetup() {
+	static void _srg_internalSetup() {
 		// Quads program.
 		_srg_state.pid = _srg_createGLProgram(_srg_vstr, _srg_fstr);
 		glUseProgram(_srg_state.pid);
