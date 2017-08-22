@@ -83,7 +83,7 @@ Renderer::Renderer(int width, int height){
 	std::vector<float> ys3;
 	for(float theta = -M_PI; theta <= M_PI; theta += 2.0f*M_PI/200.0f){
 		xs3.push_back(theta);
-		ys3.push_back(sin(theta*3.5f));
+		ys3.push_back(sinf(theta*3.5f));
 	}
 	
 	gr3 = sr_graph::setup(-M_PI, M_PI, -1.1f, 1.1f, ratio, 0.05f, 0.2f, 0.4f, 0.9f);
@@ -97,14 +97,14 @@ Renderer::Renderer(int width, int height){
 	std::vector<float> ys4;
 	
 	for (float theta = -M_PI; theta <= M_PI; theta += 2.0f*M_PI / 100.0f) {
-		const float cs = cos(theta + _timer);
-		const float sn = sin(theta);
+		const float cs = cosf(theta + (float)_timer);
+		const float sn = sinf(theta);
 		xs4.push_back(sn / (1 + cs*cs));
 		ys4.push_back(sn * cs / (1 + cs*cs));
 	}
 
-	gr4 = sr_graph::setup(-1.0f, 1.0f, -1.0f/ratio, 1.0f/ratio, ratio, 0.05f, 0.5f, 0.0f, 0.0f);
-	sr_graph::add_grid(gr4, 0.1f, 0.1f, 0.0035f, 0.7f, 0.2f, 0.0f, false); // @TODO: investigate when true
+	gr4 = sr_graph::setup(-1.0f, 1.0f, -1.0f, 1.0f, ratio, 0.05f, 0.5f, 0.0f, 0.0f);
+	sr_graph::add_grid(gr4, 0.1f, 0.1f, 0.0035f, 0.7f, 0.2f, 0.0f, false);
 	sr_graph::add_points(gr4, xs4, ys4, 0.008f, 1.0f, 1.0f, 1.0f);
 	
 }
@@ -128,7 +128,7 @@ void Renderer::draw() {
 	std::vector<float> ys3;
 	for(float theta = -M_PI; theta <= M_PI; theta += 2.0f*M_PI/(200.0f)){
 		xs3.push_back(theta);
-		ys3.push_back(sin(theta*3.5f+4.0*_timer));
+		ys3.push_back(sinf(theta*3.5f+4.0f*(float)_timer));
 	}
 	sr_graph::update_curve(gr3, 0, xs3, ys3);
 	xs3.clear();
@@ -139,8 +139,8 @@ void Renderer::draw() {
 	std::vector<float> ys4;
 
 	for (float theta = -M_PI; theta <= M_PI; theta += 2.0f*M_PI / 200.0f) {
-		const float cs = cos(theta+_timer);
-		const float sn = sin(theta);
+		const float cs = cosf(theta+(float)_timer);
+		const float sn = sinf(theta);
 		xs4.push_back(sn / (1 + cs*cs));
 		ys4.push_back(sn * cs / (1 + cs*cs));
 	}
@@ -159,11 +159,7 @@ void Renderer::draw() {
 	
 	GLsizei halfWidth = (GLsizei)floor(_width*0.5);
 	GLsizei halfHeight = (GLsizei)floor(_height*0.5);
-	float ratio = 0.0* (float)_width/(float)_height;
-	
-	// @DEBUG
-	/*glViewport(0, 0, _width, _height);
-	sr_graph::draw(gr1, ratio);*/
+	float ratio = (float)_width/(float)_height;
 	
 	// Draw the four graphs, each in a quarter of the viewport.
 	glViewport(0, halfHeight, halfWidth, halfHeight);
