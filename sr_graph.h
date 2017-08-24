@@ -3,27 +3,26 @@
  Do this:
 	 #define SRG_IMPLEMENTATION_SR_GRAPH
 	 before you include this file in *one* C++ file to create the implementation.
- You will also need to include some OpenGL headers before including this one.
+     You will also need to include some OpenGL headers (or glew, gl3w,...) before including this one.
 
-	 // i.e. it should look like this:
-	 #include <gl.h>/<gl3w.h>/<GL/glew.h>
-	 #include ...
-	 #include ...
-	 #define SRG_IMPLEMENTATION_SR_GRAPH
-	 #include "srg_graph.h"
+		 // i.e. it should look like this:
+		 #include <gl.h>// or glew header, gl3w header,...
+		 #include ...
+		 #include ...
+		 #define SRG_IMPLEMENTATION_SR_GRAPH
+		 #include "srg_graph.h"
 
 
- See below the exact list of types and functions expected from OpenGL.
-	 @TODO
- 
+ See below the exact list of types and functions expected from OpenGL headers.
+	 GLuint, GLsizei, Glint
+	 GL_DEPTH_TEST, GL_TRUE, GL_FALSE, GL_CULL_FACE, GL_BLEND, GL_FRONT_FACE, GL_CULL_FACE_MODE, GL_BLEND_SRC, GL_BLEND_DST, GL_POLYGON_MODE, GL_CCW, GL_BACK, GL_FRONT, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_FRONT_AND_BACK, GL_FILL, GL_TRIANGLES, GL_ARRAY_BUFFER, GL_STATIC_DRAW, GL_FLOAT, GL_COMPILE_STATUS, GL_VERTEX_SHADER, GL_FRAGMENT_SHADER, GL_LINK_STATUS
+	 glDeleteVertexArrays, glDeleteBuffers, glIsEnabled, glGetIntegerv, glDisable, glEnable, glFrontFace, glCullFace, glBlendFunc, glPolygonMode, glUseProgram, glUniform1f, glUniform1i, glUniform3f, glBindVertexArray, glDrawArrays, glDeleteProgram, glGenVertexArrays, glGenBuffers, glBindBuffer, glBufferData, glEnableVertexAttribArray, glVertexAttribPointer, glCreateShader, glShaderSource, glCompileShader, glGetShaderiv, glCreateProgram, glAttachShader, glLinkProgram, glGetProgramiv, glDetachShader, glDeleteShader, glGetUniformLocation
+
  Usage:
 	 @TODO
- 
- Release 1.0 notes:
-	 @TODO
- 
+  
  Revision history
-	 @TODO
+	 1.0 First public version! Support for curves, bar charts, points, axes with arrows, grid, real-time updates.
  
  License:
 	 See end of file.
@@ -108,14 +107,12 @@ namespace sr_graph {
 		float ratio;
 		float margin;
 		bool freed;
-		
 		_srg_Buffers bufferAxes;
 		_srg_Color colorAxes;
-
 		_srg_Buffers bufferGrid;
 		_srg_Color colorGrid;
-		
 		std::vector<_srg_Curve> curves;
+		std::vector<_srg_Curve> curvespoints;
 		std::vector<_srg_Curve> points;
 		std::vector<_srg_Curve> hists;
 	} _srg_Graph;
@@ -131,6 +128,7 @@ namespace sr_graph {
 		GLuint rid;
 		GLuint prid;
 		GLuint lrid;
+		GLuint psid;
 	} _srg_InternalState ;
 	
 	enum _srg_Orientation {
@@ -180,6 +178,7 @@ namespace sr_graph {
 		graph.bufferGrid = { 0, 0, 0 };
 		graph.colorGrid = graph.color;
 		graph.curves.clear();
+		graph.curvespoints.clear();
 		graph.points.clear();
 		graph.hists.clear();
 
@@ -274,11 +273,18 @@ namespace sr_graph {
 			return -1;
 		}
 		_srg_Graph & graph = _srg_graphs[graph_id];
+		// Generate the lines.
 		_srg_Curve curve;
 		curve.color = {color_r, color_g, color_b};
 		curve.param0 = width;
 		_srg_generateCurve(graph, xs, ys, curve);
 		graph.curves.push_back(curve);
+		// Generate the points junctions.
+		_srg_Curve curvepoints;
+		curvepoints.color = { color_r, color_g, color_b };
+		curvepoints.param0 = width;
+		_srg_generatePoints(graph, xs, ys, curvepoints);
+		graph.curvespoints.push_back(curvepoints);
 		return (int)graph.curves.size()-1;
 	}
 	
@@ -292,11 +298,16 @@ namespace sr_graph {
 		if(curve_id < 0 || curve_id >= graph.curves.size()){
 			return;
 		}
+		// Update the lines.
 		_srg_Curve & curve = graph.curves[curve_id];
-		
 		glDeleteVertexArrays(1, &(curve.buffer.id));
 		glDeleteBuffers(1, &(curve.buffer.bid));
 		_srg_generateCurve(graph, xs, ys, curve);
+		// Update the points junctions.
+		_srg_Curve & curvepoints = graph.curvespoints[curve_id];
+		glDeleteVertexArrays(1, &(curvepoints.buffer.id));
+		glDeleteBuffers(1, &(curvepoints.buffer.bid));
+		_srg_generatePoints(graph, xs, ys, curvepoints);
 	}
 	
 	
@@ -398,6 +409,7 @@ namespace sr_graph {
 		glUniform1f(_srg_state.lrid, finalRatio);
 		glUseProgram(_srg_state.ppid);
 		glUniform1f(_srg_state.prid, finalRatio);
+		glUniform1i(_srg_state.psid, 1);
 
 		// Draw quad to clear.
 		glUseProgram(_srg_state.pid);
@@ -422,11 +434,17 @@ namespace sr_graph {
 		}
 		
 		// Draw curves.
-		glUseProgram(_srg_state.lpid);
 		for(unsigned int i = 0; i < graph.curves.size(); ++i){
+			// Draw the lines.
+			glUseProgram(_srg_state.lpid);
 			glUniform3f(_srg_state.lcid, graph.curves[i].color.r, graph.curves[i].color.g, graph.curves[i].color.b);
 			glBindVertexArray(graph.curves[i].buffer.id);
 			glDrawArrays(GL_TRIANGLES, 0, graph.curves[i].buffer.count);
+			// Draw the points junctions (soft point smoothing enabled). // @IMPROVEMENT: enhance line junctions again.
+			glUseProgram(_srg_state.ppid);
+			glUniform3f(_srg_state.pcid, graph.curvespoints[i].color.r, graph.curvespoints[i].color.g, graph.curvespoints[i].color.b);
+			glBindVertexArray(graph.curvespoints[i].buffer.id);
+			glDrawArrays(GL_TRIANGLES, 0, graph.curvespoints[i].buffer.count);
 		}
 		
 		// Draw axes.
@@ -435,8 +453,9 @@ namespace sr_graph {
 		glBindVertexArray(graph.bufferAxes.id);
 		glDrawArrays(GL_TRIANGLES, 0, graph.bufferAxes.count);
 		
-		// Draw points.
+		// Draw points (crisp point smoothing enabled).
 		glUseProgram(_srg_state.ppid);
+		glUniform1i(_srg_state.psid, 0);
 		for(unsigned int i = 0; i < graph.points.size(); ++i){
 			glUniform3f(_srg_state.pcid, graph.points[i].color.r, graph.points[i].color.g, graph.points[i].color.b);
 			glBindVertexArray(graph.points[i].buffer.id);
@@ -484,6 +503,10 @@ namespace sr_graph {
 		for(unsigned int i = 0; i < graph.curves.size(); ++i){
 			glDeleteVertexArrays(1, &(graph.curves[i].buffer.id));
 			glDeleteBuffers(1, &(graph.curves[i].buffer.bid));
+		}
+		for (unsigned int i = 0; i < graph.curvespoints.size(); ++i) {
+			glDeleteVertexArrays(1, &(graph.curvespoints[i].buffer.id));
+			glDeleteBuffers(1, &(graph.curvespoints[i].buffer.bid));
 		}
 		for(unsigned int i = 0; i < graph.hists.size(); ++i){
 			glDeleteVertexArrays(1, &(graph.hists[i].buffer.id));
@@ -652,7 +675,6 @@ namespace sr_graph {
 			const float x1 = ax*xs[i]+bx;
 			const float y1 = ay*ys[i]+by;
 			_srg_getLine(x0, y0, x1, y1, curve.param0, graph.ratio, curveData);
-			// @TODO: handle lines intersections.
 			x0 = x1;
 			y0 = y1;
 		}
@@ -723,7 +745,7 @@ namespace sr_graph {
 	
 	static const char * _srg_lfstr = "#version 330\nin vec2 coords;\nuniform vec3 color;\nout vec4 frag_Color;\nvoid main(){\nfrag_Color.rgb = color;\nfrag_Color.a = 1.0-smoothstep(0.5, 1.0, abs(coords.y));\n}\n";
 
-	static const char * _srg_pfstr = "#version 330\nin vec2 coords;\nuniform vec3 color;\nout vec4 fragColor;\nvoid main(){\nfragColor = vec4(color, 1.0-smoothstep(0.9, 1.0, length(coords)));\n}\n";
+	static const char * _srg_pfstr = "#version 330\nin vec2 coords;\nuniform vec3 color;\nuniform bool smoothing;\nout vec4 fragColor;\nvoid main(){\nfragColor = vec4(color, 1.0-smoothstep(smoothing ? 0.5 : 0.9, 1.0, length(coords)));\n}\n";
 	
 	
 	/// OpenGL helpers.
@@ -804,6 +826,7 @@ namespace sr_graph {
 		glUseProgram(_srg_state.ppid);
 		_srg_state.pcid = glGetUniformLocation(_srg_state.ppid, "color");
 		_srg_state.prid = glGetUniformLocation(_srg_state.ppid, "ratio");
+		_srg_state.psid = glGetUniformLocation(_srg_state.ppid, "smoothing");
 		glUseProgram(0);
 		// Quad data for full viewport clearing.
 		const float quadData[12] = { -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f };
