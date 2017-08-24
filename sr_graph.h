@@ -1,28 +1,82 @@
-/* sr_graph - v1.0 - public domain plot tracer ; no warranties implied, use at your own risk.
+/* sr_graph - v1.0 - public domain plot tracer ;
+	 no warranties implied, use at your own risk.
 
  Do this:
 	 #define SRG_IMPLEMENTATION_SR_GRAPH
-	 before you include this file in *one* C++ file to create the implementation.
-     You will also need to include some OpenGL headers (or glew, gl3w,...) before including this one.
+ before you include this file in *one* C++ file to create the implementation.
+ You will need to include OpenGL headers (or glew, gl3w,...) before including this one.
+ In other files you can simply include "sr_graph.h" without using the above define.
 
-		 // i.e. it should look like this:
-		 #include <gl.h>// or glew header, gl3w header,...
-		 #include ...
-		 #include ...
-		 #define SRG_IMPLEMENTATION_SR_GRAPH
-		 #include "srg_graph.h"
+	 // i.e. it should look like this:
+	 #include <gl.h>// or glew header, gl3w header,...
+	 #include ...
+	 #include ...
+	 #define SRG_IMPLEMENTATION_SR_GRAPH
+	 #include "srg_graph.h"
 
 
  See below the exact list of types and functions expected from OpenGL headers.
 	 GLuint, GLsizei, Glint
-	 GL_DEPTH_TEST, GL_TRUE, GL_FALSE, GL_CULL_FACE, GL_BLEND, GL_FRONT_FACE, GL_CULL_FACE_MODE, GL_BLEND_SRC, GL_BLEND_DST, GL_POLYGON_MODE, GL_CCW, GL_BACK, GL_FRONT, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_FRONT_AND_BACK, GL_FILL, GL_TRIANGLES, GL_ARRAY_BUFFER, GL_STATIC_DRAW, GL_FLOAT, GL_COMPILE_STATUS, GL_VERTEX_SHADER, GL_FRAGMENT_SHADER, GL_LINK_STATUS
-	 glDeleteVertexArrays, glDeleteBuffers, glIsEnabled, glGetIntegerv, glDisable, glEnable, glFrontFace, glCullFace, glBlendFunc, glPolygonMode, glUseProgram, glUniform1f, glUniform1i, glUniform3f, glBindVertexArray, glDrawArrays, glDeleteProgram, glGenVertexArrays, glGenBuffers, glBindBuffer, glBufferData, glEnableVertexAttribArray, glVertexAttribPointer, glCreateShader, glShaderSource, glCompileShader, glGetShaderiv, glCreateProgram, glAttachShader, glLinkProgram, glGetProgramiv, glDetachShader, glDeleteShader, glGetUniformLocation
+	 GL_DEPTH_TEST, GL_TRUE, GL_FALSE, GL_CULL_FACE, GL_BLEND, GL_FRONT_FACE,
+	 GL_CULL_FACE_MODE, GL_BLEND_SRC, GL_BLEND_DST, GL_POLYGON_MODE, GL_CCW, GL_BACK,
+	 GL_FRONT, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_FRONT_AND_BACK, GL_FILL,
+	 GL_TRIANGLES, GL_ARRAY_BUFFER, GL_STATIC_DRAW, GL_FLOAT, GL_COMPILE_STATUS,
+	 GL_VERTEX_SHADER, GL_FRAGMENT_SHADER, GL_LINK_STATUS
+	 glDeleteVertexArrays, glDeleteBuffers, glIsEnabled, glGetIntegerv, glDisable,
+	 glEnable, glFrontFace, glCullFace, glBlendFunc, glPolygonMode, glUseProgram,
+	 glUniform1f, glUniform1i, glUniform3f, glBindVertexArray, glDrawArrays,
+	 glDeleteProgram, glGenVertexArrays, glGenBuffers, glBindBuffer, glBufferData,
+	 glEnableVertexAttribArray, glVertexAttribPointer, glCreateShader, glShaderSource,
+	 glCompileShader, glGetShaderiv, glCreateProgram, glAttachShader, glLinkProgram,
+	 glGetProgramiv, glDetachShader, glDeleteShader, glGetUniformLocation
 
  Usage:
-	 @TODO
+	 Make sure that an OpenGL context has been setup before any call to sr_graph functions.
+ 
+ Start by creating a graph using
+ 
+		 setup(min x, max x, min y, max y, screen ratio, margin, red, green, blue)
+ 
+ the margin value is a number between 0 and 1, the color components are for the background and  are between 0 and 1.
+ This will return an integer that you will use as a reference to the graph for later calls.
+ 
+ The graph can be customized by adding axes with arrows (automatically oritneted toward
+ the increasing values on both axes). By default the axes will pass through the (0,0)
+ point or stick to the side of the graph the closest to this point in both sides. You
+ can also force them to stick on the side setting axis on side to true
+ 
+		 add_axes(graph id, width, red, green, blue, axis on side);
+ 
+ A regular grid can also be added. It can either start from the left/bottom side of the
+ graph, or be centered on the (0,0) point.
+		 add_grid(graph id, step x, step y, width, red, green, blue, align on 0 )
+ 
+		 add_curve(graph id, x values, y values, line width, red, green, blue)
+		 add_hist(graph id, number of bins, values, spacing, red, green, blue);
+		 add_points(graph id, x values, y values, point size, red, green, blue);
+ 
+ These three functions return integers IDs that can then be use to update a given plot
+ on a given graph by calling respectively:
+ 
+		 update_points(graph id, points cloud id, new x values, new y values)
+		 update_curve(graph id, curve id, new x values, new y values)
+		 update_hist(graph id, histogram id, new values)
+ 
+ All settings (width, size, bins, colors) are preserved. The IDs for each type of plot
+ are managed separately.
+ 
+ Call draw(graph id, screen ratio) to draw in the current viewport. If a screen ratio
+ is specified, the graph will be rescaled to avoid any deformation. If no ratio is
+ specified, nothing is done to prevent deformations when resizing the window.
+ 
+ You can delete a graph and free its resources by calling free(graph id), or free all
+ graphs and shared resources by calling free().
+ 
+ 
   
  Revision history
-	 1.0 First public version! Support for curves, bar charts, points, axes with arrows, grid, real-time updates.
+	 1.0 First public version! Support for curves, bar charts, points, axes with
+		 arrows, grid, real-time updates.
  
  License:
 	 See end of file.
