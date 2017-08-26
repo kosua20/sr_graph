@@ -4,8 +4,9 @@
  Do this:
 	 #define SRG_IMPLEMENTATION_SR_GRAPH
  before you include this file in *one* C++ file to create the implementation.
- You will need to include OpenGL headers (or glew, gl3w,...) before including this one.
- In other files you can simply include "sr_graph.h" without using the above define.
+ You will need to include OpenGL headers (or glew, gl3w,...) before including 
+ this one. In other files you should simply include "sr_graph.h" without using 
+ the above define.
 
 	 // i.e. it should look like this:
 	 #include <gl.h>// or glew header, gl3w header,...
@@ -13,67 +14,87 @@
 	 #include ...
 	 #define SRG_IMPLEMENTATION_SR_GRAPH
 	 #include "srg_graph.h"
+ 
 
-
+ Usage:
+	 Make sure that an OpenGL context has been setup before calling any sr_graph 
+	 functions. All colors are defined by their red, green, blue components 
+	 taking values in [0.0,1.0].
+	 Start by creating a graph using:
+ 
+		 setup(min x, max x, min y, max y, ratio, margin, red, green, blue);
+ 
+	 You specify the bounds of the graph (minimal and maximal values on both 
+	 axes), the screen ratio, the margin (between 0 - no margin - and 1 - no 
+	 graph -), and the  background color. This will return an integer ID that 
+	 you will use as a reference to the graph for later calls.
+ 
+	 The graph can be customized by adding axes with arrows (automatically 
+	 oriented  toward the increasing values on both axes). You can specify their
+	 width (in [0,1]) and set their color. By default the axes will pass through
+	 the (0,0) point or stick to the sides of the graph the closest to it. You 
+	 can also force them to stick on the side by setting 'side axis' to true.
+ 
+		 add_axes(graphID, width, red, green, blue, side axis);
+ 
+	 A regular grid can also be added. Specify the spacing between grid lines on 
+	 both axis, the width (in [0,1]) and color. The grid can either start from 
+	 the left and bottom side of the graph, or be centered on the (0,0) point by
+	 setting 'zero align' to true.
+ 
+		 add_grid(graphID, step x, step y, width, red, green, blue, zero align);
+	
+	 You can plot continuous curves by specifying lists of X and Y coordinates, 
+	 along with the width ([0,1]) and color of the lines. Points clouds can be 
+	 added in a similar manner, by specifying X and Y coordinates, a point size 
+	 and color. Finally you can also add histograms, by specifying a set of 
+	 values and a number of bins ; spacing between bars and their color should 
+	 also be specified.
+	
+		 add_curve(graphID, x values, y values, line width, red, green, blue);
+		 add_points(graphID, x values, y values, point size, red, green, blue);
+		 add_hist(graphID, number of bins, values, spacing, red, green, blue);
+ 
+	 These three functions return integers IDs that can then be used to update a
+	 given plot on a given graph at a later time by calling respectively:
+ 
+		 update_points(graphID, points cloud id, new x values, new y values);
+		 update_curve(graphID, curve id, new x values, new y values);
+		 update_hist(graphID, histogram id, new values);
+ 
+	 All settings (width, size, bins, colors) are preserved. The IDs are managed
+	 separately for each graph and each type of plot.
+ 
+	 Call:
+ 
+		 draw(graphID, screen ratio);
+	
+	 to draw a graph in the current viewport. If a screen ratio is specified, 
+	 the graph will be rescaled to avoid any deformation ; else, nothing is done
+	 to prevent deformations when resizing the window.
+ 
+	 You can delete a graph and free its resources, or free all graphs and
+	 resources (including OpenGL buffers and programs) by calling respectively:
+ 
+		 free(graphID);
+		 free();
+ 
  See below the exact list of types and functions expected from OpenGL headers.
 	 GLuint, GLsizei, Glint
 	 GL_DEPTH_TEST, GL_TRUE, GL_FALSE, GL_CULL_FACE, GL_BLEND, GL_FRONT_FACE,
-	 GL_CULL_FACE_MODE, GL_BLEND_SRC, GL_BLEND_DST, GL_POLYGON_MODE, GL_CCW, GL_BACK,
-	 GL_FRONT, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_FRONT_AND_BACK, GL_FILL,
-	 GL_TRIANGLES, GL_ARRAY_BUFFER, GL_STATIC_DRAW, GL_FLOAT, GL_COMPILE_STATUS,
-	 GL_VERTEX_SHADER, GL_FRAGMENT_SHADER, GL_LINK_STATUS
-	 glDeleteVertexArrays, glDeleteBuffers, glIsEnabled, glGetIntegerv, glDisable,
-	 glEnable, glFrontFace, glCullFace, glBlendFunc, glPolygonMode, glUseProgram,
-	 glUniform1f, glUniform1i, glUniform3f, glBindVertexArray, glDrawArrays,
-	 glDeleteProgram, glGenVertexArrays, glGenBuffers, glBindBuffer, glBufferData,
-	 glEnableVertexAttribArray, glVertexAttribPointer, glCreateShader, glShaderSource,
-	 glCompileShader, glGetShaderiv, glCreateProgram, glAttachShader, glLinkProgram,
-	 glGetProgramiv, glDetachShader, glDeleteShader, glGetUniformLocation
-
- Usage:
-	 Make sure that an OpenGL context has been setup before any call to sr_graph functions.
+	 GL_CULL_FACE_MODE, GL_BLEND_SRC, GL_BLEND_DST, GL_POLYGON_MODE, GL_CCW, 
+	 GL_BACK, GL_FRONT, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_FRONT_AND_BACK, 
+	 GL_FILL, GL_TRIANGLES, GL_ARRAY_BUFFER, GL_STATIC_DRAW, GL_FLOAT, 
+	 GL_COMPILE_STATUS,  GL_VERTEX_SHADER, GL_FRAGMENT_SHADER, GL_LINK_STATUS
+	 glDeleteVertexArrays, glDeleteBuffers, glIsEnabled, glBlendFunc, glDisable,
+	 glEnable, glFrontFace, glCullFace, glGetIntegerv, glPolygonMode,
+	 glUseProgram, glUniform1f, glUniform1i, glUniform3f, glBindVertexArray, 
+	 glDrawArrays, glDeleteProgram, glGenVertexArrays, glGenBuffers,
+	 glBindBuffer, glBufferData, glEnableVertexAttribArray, glCreateShader, 
+	 glShaderSource, glVertexAttribPointer, glCompileShader, glGetShaderiv, 
+	 glCreateProgram, glAttachShader, glLinkProgram, glGetProgramiv, 
+	 glDetachShader, glDeleteShader, glGetUniformLocation
  
- Start by creating a graph using
- 
-		 setup(min x, max x, min y, max y, screen ratio, margin, red, green, blue)
- 
- the margin value is a number between 0 and 1, the color components are for the background and  are between 0 and 1.
- This will return an integer that you will use as a reference to the graph for later calls.
- 
- The graph can be customized by adding axes with arrows (automatically oritneted toward
- the increasing values on both axes). By default the axes will pass through the (0,0)
- point or stick to the side of the graph the closest to this point in both sides. You
- can also force them to stick on the side setting axis on side to true
- 
-		 add_axes(graph id, width, red, green, blue, axis on side);
- 
- A regular grid can also be added. It can either start from the left/bottom side of the
- graph, or be centered on the (0,0) point.
-		 add_grid(graph id, step x, step y, width, red, green, blue, align on 0 )
- 
-		 add_curve(graph id, x values, y values, line width, red, green, blue)
-		 add_hist(graph id, number of bins, values, spacing, red, green, blue);
-		 add_points(graph id, x values, y values, point size, red, green, blue);
- 
- These three functions return integers IDs that can then be use to update a given plot
- on a given graph by calling respectively:
- 
-		 update_points(graph id, points cloud id, new x values, new y values)
-		 update_curve(graph id, curve id, new x values, new y values)
-		 update_hist(graph id, histogram id, new values)
- 
- All settings (width, size, bins, colors) are preserved. The IDs for each type of plot
- are managed separately.
- 
- Call draw(graph id, screen ratio) to draw in the current viewport. If a screen ratio
- is specified, the graph will be rescaled to avoid any deformation. If no ratio is
- specified, nothing is done to prevent deformations when resizing the window.
- 
- You can delete a graph and free its resources by calling free(graph id), or free all
- graphs and shared resources by calling free().
- 
- 
-  
  Revision history
 	 1.0 First public version! Support for curves, bar charts, points, axes with
 		 arrows, grid, real-time updates.
