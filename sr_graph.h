@@ -802,7 +802,7 @@ namespace sr_graph {
 			if(binCounts[i] == 0){
 				continue;
 			}
-			float x0 = ax*(graph.minx+(float)(i+0.5)*binSize) + bx; //@TODO: check corner cases.
+			float x0 = ax*(graph.minx+(float)(i+0.5f)*binSize) + bx;
 			float y0 = by;
 			float y1 = ay * (float)binCounts[i] + by;
 			_srg_getRectangle(x0, y0, x0, y1, binWidth, histData);
