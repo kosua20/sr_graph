@@ -15,6 +15,8 @@
 	 #define SRG_IMPLEMENTATION_SR_GRAPH
 	 #include "srg_graph.h"
  
+ In the file where the implementation is activated, SR_GRAPH_LOGGING can be
+ defined to log errors in OpenGL setup (stdio.h will be included).
 
  Usage:
 	 Make sure that an OpenGL context has been setup before calling any sr_graph 
@@ -146,10 +148,13 @@ namespace sr_graph {
 
 #ifdef SRG_IMPLEMENTATION_SR_GRAPH
 
+#ifdef SR_GRAPH_LOGGING
 #include <stdio.h>
+#endif
+
 #include <math.h>
 #include <vector>
-#include <iostream>
+
 namespace sr_graph {
 	
 	/// Internal structs.
@@ -854,7 +859,10 @@ namespace sr_graph {
 		glGetShaderiv(id, GL_COMPILE_STATUS, &success);
 		// If compilation failed, get information and display it.
 		if (success != GL_TRUE) {
-			printf("Failed OpenGL shader setup.\n");
+			#ifdef SR_GRAPH_LOGGING
+				printf("[sr_graph] Failed OpenGL shader setup.\n");
+			#endif
+			// glCreateShader returns 0 if an error happened, so we can too.
 			return 0;
 		}
 		return id;
@@ -866,6 +874,7 @@ namespace sr_graph {
 		// Load and attach shaders, then link them w/ the program.
 		GLuint vp = _srg_loadShader(vertexString, GL_VERTEX_SHADER);
 		GLuint fp = _srg_loadShader(fragmentString, GL_FRAGMENT_SHADER);
+		if(vp==0 || fp == 0){ return 0; }
 		glAttachShader(id, vp);
 		glAttachShader(id, fp);
 		glLinkProgram(id);
@@ -873,12 +882,15 @@ namespace sr_graph {
 		GLint success = GL_FALSE;
 		glGetProgramiv(id, GL_LINK_STATUS, &success);
 		if (!success) {
-			printf("Failed OpenGL setup.\n");
+			#ifdef SR_GRAPH_LOGGING
+				printf("[sr_graph] Failed OpenGL program setup.\n");
+			#endif
+			// glCreateProgram returns 0 if an error happened, so we can too.
 			return 0;
 		}
 		// Clean the shaders objects, detach and delete them.
-		if (vp != 0) { glDetachShader(id, vp); }
-		if (fp != 0) { glDetachShader(id, fp); }
+		glDetachShader(id, vp);
+		glDetachShader(id, fp);
 		glDeleteShader(vp);
 		glDeleteShader(fp);
 		return id;
@@ -906,8 +918,14 @@ namespace sr_graph {
 		// Quad data for full viewport clearing.
 		const float quadData[12] = { -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f };
 		_srg_state.bufferQuad = _srg_setDataBuffer(quadData, 6);
-		 // @TODO: cleanly handle errors.
-		_srg_isInit = true;
+		// Check all programs are ok before considering initialization complete.
+		if(_srg_state.pid != 0 && _srg_state.lpid != 0 && _srg_state.ppid != 0){
+			_srg_isInit = true;
+		} else {
+			#ifdef SR_GRAPH_LOGGING
+				printf("[sr_graph] Failed to init.\n");
+			#endif
+		}
 	}
 	
 }
