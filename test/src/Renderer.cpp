@@ -17,7 +17,7 @@
 #define M_PI 3.14159265359f
 #endif
 
-int gr1, gr2, gr3, gr4;
+int gr1, gr2, gr3, gr4, gr5;
 
 Renderer::~Renderer(){}
 
@@ -107,6 +107,38 @@ Renderer::Renderer(int width, int height){
 	sr_graph::add_grid(gr4, 0.1f, 0.1f, 0.0035f, 0.7f, 0.2f, 0.0f, false);
 	sr_graph::add_points(gr4, xs4, ys4, 0.008f, 1.0f, 1.0f, 1.0f);
 	
+	/*
+	// Graph 5: Charging a condensator.
+	const float tau = 0.9f;
+	const float E = 0.93f;
+	
+	gr5 = sr_graph::setup(0.0f, 5.0f, 0.0f, 1.0f, ratio, 0.05f, 1.0f, 1.0f, 1.0f);
+	sr_graph::add_grid(gr5, 0.5f, 0.1f, 0.0035f, 0.6f, 0.6f, 0.6f, true);
+	sr_graph::add_axes(gr5, 0.006f, 0.0f,0.0f,0.0f, true);
+	
+	// Limit and initial tangent.
+	std::vector<float> xs5b = {0.0f, 5.0f};
+	std::vector<float> ys5b = {E, E};
+	sr_graph::add_curve(gr5, xs5b, ys5b, 0.0075f, 0.05f, 0.1f, 0.8f);
+	std::vector<float> xs5c = {0.0f, tau};
+	std::vector<float> ys5c = {0.0f, E};
+	sr_graph::add_curve(gr5, xs5c, ys5c, 0.0075f, 0.8f, 0.05f, 0.1f);
+	
+	// Theoretical curve.
+	std::vector<float> xs5a;
+	std::vector<float> ys5a;
+	for(float t = 0.0f; t < 5.0f;t+=0.1f){
+		xs5a.push_back(t);
+		const float tension = E*(1.0f - exp(-t/tau));
+		ys5a.push_back(tension);
+	}
+	sr_graph::add_curve(gr5, xs5a, ys5a, 0.0075f, 0.05f, 0.8f, 0.1f);
+	
+	// Experimental points.
+	std::vector<float> xs5d = { 0.654898f, 1.93642f, 3.12904f, 1.05706f, 3.70182f, 4.06798f, 2.7657f, 0.390208f, 4.62793f, 0.795069f, 2.34131f, 3.61451f, 1.14334f, 2.41359f, 4.79167f, 3.04445f, 1.36835f, 1.41364f, 4.43056f, 0.747874f, 3.58727f, 1.01217f, 2.99215f, 0.12714f, 4.17702f, 0.51538f, 0.180101f, 1.98563f};
+	std::vector<float> ys5d = { 0.511335f, 0.780862f, 0.925034f, 0.604544f, 0.901932f, 0.943024f, 0.920169f, 0.37064f, 0.959532f, 0.525493f, 0.888619f, 0.937215f, 0.650272f, 0.896746f, 0.925192f, 0.88925f, 0.739788f, 0.703377f, 0.960619f, 0.535305f, 0.881215f, 0.617891f, 0.881836f, 0.12358f, 0.95223f, 0.449745f, 0.119746f, 0.820037f};
+	sr_graph::add_points(gr5, xs5d, ys5d, 0.013f, 0.2f, 0.2f, 0.2f);
+	 */
 }
 
 
@@ -170,7 +202,10 @@ void Renderer::draw() {
 	sr_graph::draw(gr3, ratio);
 	glViewport(halfWidth, halfHeight, halfWidth, halfHeight);
 	sr_graph::draw(gr4, ratio);
-	
+	/*
+	glViewport(0, 0, _width, _height);
+	sr_graph::draw(gr5, ratio);
+	 */
 	
 	// Update timer
 	_timer = glfwGetTime();
